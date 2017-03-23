@@ -59,7 +59,7 @@ def get_filename(set_url):
 # TODO: Faire un objet set_parser
 
 # Lecture du fichier de configuration
-with open('config.yml', 'r') as ymlfile:
+with open('config_cng.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
 
 # Parser la page à l'adresse :

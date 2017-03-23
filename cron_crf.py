@@ -10,4 +10,6 @@ import requests
 import yaml
 from redcap import Project
 
+with open('config_crf.yml', 'r') as ymlfile:
+    config = yaml.load(ymlfile)
 
