@@ -110,6 +110,8 @@ def set_to_records(set):
 
         records.setdefault(patient_id, [])
 
+
+        # Ces info seront déjà présentent sur le RedCap après intérogation du CRF
         record = {'patient_id': patient_id, 'redcap_repeat_instrument': instrument_type,
         'redcap_repeat_instance': len(records[patient_id]) + 1}
 
