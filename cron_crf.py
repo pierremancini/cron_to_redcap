@@ -10,6 +10,7 @@ import csv
 import sys
 import yaml
 from redcap import Project
+import itertools
 
 
 # TODO: Mettre logger les erreurs si le script est en production
@@ -81,7 +82,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         """
         if barcode not in redcap_barcodes:
-            instance_number = max_instance_number(couple) + 1
+            instance_number = max_instance_number() + 1
             new_record = {'redcap_repeat_instrument': instrument,
                           'patient_id': patient_id,
                           type_barcode: barcode[0],
@@ -97,7 +98,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         new_records = []
 
-        instance_number = max_instance_number(couple) + 1
+        instance_number = max_instance_number() + 1
 
         for barcode in couple_count[couple]['barcode']:
             if barcode not in redcap_barcodes:
@@ -211,7 +212,7 @@ with open('config_crf.yml', 'r') as ymlfile:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
-barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_gcn_barcode']
+barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_cng_barcode']
 instrument_index = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
 response = project.export_records()
@@ -224,15 +225,10 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
     pack = treat_redcap_response(response, barcode_index)
     redcap_couple, redcap_barcodes, redcap_records = pack
 
-    records_to_import = []
-
     pack = create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records)
     to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
+records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
+                                    to_create_barcode, create_chain))
 
-# TODO: remplir records_to_import avec to_clone_barcode, clone_chain, to_create_barcode, create_chain
-# -> ou faire faire ce remplissage à create_clon_chains ?
-
-
-sys.exit('exit')
 project.import_records(records_to_import)
