@@ -12,135 +12,210 @@ import yaml
 from redcap import Project
 
 
-def barcode_info_crf(dict_reader):
-    """ 
-        Format data from CRF's .csv file.
+# TODO: Mettre logger les erreurs si le script est en production
 
-        Format to a data structure compatible with clone_record. 
+def treat_crf(reader, barcode_index):
+    """
+        1. Format data from CRF's .csv file.
+        2. Find all doublon in CRF file.
+
+        TODO: Changer la doc pour les paramètres
+
+        :param reader: Content of .tsv's CRF file
+        :param barcode_index: different types of index corresponding to barcode
     """
 
-    # Structure : {barcode: {'patient_id': ... , 'type_barcode': ... }}
-    dict = {}
+    # Couple = patient_id & type_barcode,
+    # est utilisé comme clé primaire dans le fichier CRF et le RedCap
 
-    for line in dict_reader:
+    # Structure
+    # {(patient_id, type_barcode): nb}
+    couple_count = {}
+
+    for line in reader:
         patient_id = line['patient_id']
         for index in line:
             if index in barcode_index and line[index]:
-                dict.setdefault(line[index], {'patient_id': patient_id, 'type_barcode': index})
-    return dict
+                couple_count.setdefault((patient_id, index), {'count': 0, 'barcode': []})
+                couple_count[(patient_id, index)]['count'] += 1
+                couple_count[(patient_id, index)]['barcode'].append(line[index])
+
+    return couple_count
 
 
-def sort_records(response):
+def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records):
     """
-        Sort record by barcode.
+        TODO: changer la doc
 
-        Return a dictionnary with barcodes as key.
-    """
-
-    dict = {}
-
-    for record in response:
-        for index in record:
-            if index == 'patient_id' and record[index]:
-                patient_id = record[index]
-            if index == 'redcap_repeat_instrument' and record[index]:
-                redcap_repeat_instrument = record[index]
-
-        try:
-            dict.setdefault(patient_id, {}).setdefault(redcap_repeat_instrument, []).append(record)
-        except UnboundLocalError:
-            pass
-
-    return dict
-
-
-def get_to_clone(dict_crf, records_redcap, type_barcode_to_instrument):
-    """
-        Return list of record's barcode that have to be cloned in Redcap
-        and list of record's that have to be created in Redcap.
-
-        1. - Find couples: (patient_id, type_instrument)redcap & (patient_id, type_instrument)CRF
-           - Couple that does match give the barcodes "to_create"
-        2. Filter couples with same barcode,
-           the remaining barcodes are return as to_clone_barcode
-
-        :param dict_crf: output of barcode_info_crf()
-        :param records_redcap: record from redcap sorted by barcode and intrument type
+        :param dict_crf: First output of treat_crf()
+        :param doublons: ?
+        :param redcap_couple: ...
         :param type_barcode_to_instrument: give instrument type with barcode type
     """
 
+    # A comparer avec t_redcap pour avoir chained_barcode
     instrument_to_barcode = {'germline_dna_sequencing': 'germline_dna_cng_barcode',
          'tumor_dna_sequencing': 'tumor_dna_barcode',
-         'rna_sequencing': 'rna_gcn_barcode'}
+         'rna_sequencing': 'rna_cng_barcode'}
 
-    t_redcap = tuple((patient_id, instrument) for patient_id in records_redcap for instrument in records_redcap[patient_id])
+    # Correspondance des champs barcode et redcap_repeated_instrument
+    # dans un résultat d'exportation de données via l'api redcap
+    type_barcode_to_instrument = {'germline_dna_cng_barcode': 'germline_dna_sequencing',
+         'tumor_dna_barcode': 'tumor_dna_sequencing',
+         'rna_cng_barcode': 'rna_sequencing'}
 
-    flag_to_clone = True
+    def max_instance_number(couple):
+        """  """
 
-    to_clone_barcode = []
-    to_create_barcode = []
-
-    for barcode in dict_crf:
-        patient_id_crf = dict_crf[barcode]['patient_id']
-        inst_crf = type_barcode_to_instrument[dict_crf[barcode]['type_barcode']]
-        if (patient_id_crf, inst_crf) in t_redcap:
-            flag_to_clone = True
-            for record in records_redcap[patient_id_crf][inst_crf]:
-                if barcode == record[instrument_to_barcode[inst_crf]]:
-                    flag_to_clone = False
-            if flag_to_clone:
-                to_clone_barcode.append(barcode)
-        else:
-            to_create_barcode.append(barcode)
-
-    return (to_clone_barcode, to_create_barcode)
-
-
-def clone_record(barcode, dict_info, type_barcode_inst, records_redcap):
-    """
-        Create a clone of the record in the redcap that has the same barcode
-        and increment the 'redcap_repeat_instance' number.
-    """
-
-    patient_id = dict_info['patient_id']
-    instrument_type = type_barcode_inst[dict_info['type_barcode']]
-
-    def get_max_instance_number(patient_id, instrument, records_redcap):
-        """
-            Return instance number.
-        """
-
+        # On determine l'instance number
+        # et on incrémente
         max_instance_number = 0
-        for record in records_redcap[patient_id][instrument]:
-            if record['redcap_repeat_instance']:
-                if record['redcap_repeat_instance'] > max_instance_number:
-                    max_instance_number = record['redcap_repeat_instance']
+        for record in redcap_records[(patient_id, instrument)]:
+            if record['redcap_repeat_instance'] > max_instance_number:
+                max_instance_number = record['redcap_repeat_instance']
 
         return max_instance_number
 
-    # On determine l'instance number
-    # et on incrémente
-    instance_number = get_max_instance_number(patient_id, instrument_type, records_redcap) + 1
+    def clone_record():
+        """
 
-    new_record = {'redcap_repeat_instrument': instrument_type,
-                  'patient_id': patient_id,
-                  dict_info['type_barcode']: barcode,
-                  'redcap_repeat_instance': instance_number
-                  }
+        """
+        if barcode not in redcap_barcodes:
+            instance_number = max_instance_number(couple) + 1
+            new_record = {'redcap_repeat_instrument': instrument,
+                          'patient_id': patient_id,
+                          type_barcode: barcode[0],
+                          'redcap_repeat_instance': instance_number
+                          }
 
-    return new_record
+        return new_record
+
+    def clone_chain_record(clone_chain):
+        """
+            :param clone_chain:
+        """
+
+        new_records = []
+
+        instance_number = max_instance_number(couple) + 1
+
+        for barcode in couple_count[couple]['barcode']:
+            if barcode not in redcap_barcodes:
+                new_records.append({'redcap_repeat_instrument': instrument,
+                                  'patient_id': patient_id,
+                                  type_barcode: barcode,
+                                  'redcap_repeat_instance': instance_number})
+                instance_number += 1
+
+        clone_chain += new_records
+
+        return clone_chain
+
+    def create_record():
+        """
+            Create new record for redcap.
+        """
+
+        new_record = {'redcap_repeat_instrument': instrument,
+                      'patient_id': patient_id,
+                      type_barcode: barcode[0]}
+
+        return new_record
+
+    def create_chain_record(create_chain):
+        """
+            :param create_chain:
+        """
+
+        new_records = []
+        instance_number = 1
+
+        # Ici la variable barcode est un
+        for barcode in couple_count[couple]['barcode']:
+            new_records.append({'redcap_repeat_instrument': instrument,
+                               'patient_id': patient_id,
+                               type_barcode: barcode,
+                               'redcap_repeat_instance': instance_number})
+            instance_number += 1
+
+        create_chain += new_records
+
+        return create_chain
 
 
-def create_record(barcode, dict_info):
-    """
-        Create new record for redcap.
-    """
+    # Les record vide ne doivent pas apparaitrent
 
-    new_record = {'redcap_repeat_instrument': dict_info['type_barcode'],
-                  'patient_id': dict_info['patient_id'],
-                  dict_info['type_barcode']: barcode}
+    to_clone_barcode = []
+    clone_chain = []
+    to_create_barcode = []
+    create_chain = []
 
-    return new_record
+    for couple in couple_count:
+
+        # Closure pour les fonctions clone/create/chain
+        barcode = couple_count[couple]['barcode']
+        patient_id = couple[0]
+        type_barcode = couple[1]
+        instrument = type_barcode_to_instrument[couple[1]]
+
+        # Doublon dans le fichier CRF
+        doublon = couple_count[couple]['count'] > 1
+
+        # Existe-t-il déjà un record dans redcap avec le même patient_id et le même type de barcode:
+        clone = (couple[0], couple[1]) in redcap_couple
+
+        if (not doublon) and (not clone):
+            to_create_barcode.append(create_record())
+
+        if (not doublon) and clone:
+            to_clone_barcode.append(clone_record())
+
+        if doublon and (not clone):
+            create_chain = create_chain_record(create_chain)
+
+        if doublon and clone:
+            clone_chain = clone_chain_record(clone_chain)
+
+    print('to_clone_barcode:')
+    print(to_clone_barcode)
+    print()
+    print('clone_chain:')
+    print(clone_chain)
+    print()
+    print('to_create_barcode:')
+    print(to_create_barcode)
+    print()
+    print('create_chain:')
+    print(create_chain)
+
+    sys.exit('exit create clone chains')
+    return (to_clone_barcode, clone_chain, to_create_barcode, create_chain)
+
+
+def treat_redcap_response(response, barcode_index):
+    """ """
+
+    # Strucuture:
+    # (patient_id, type_barcode)
+    redcap_couple = []
+
+    redcap_barcodes = []
+
+    # Structure:
+    # {patient_id: {instruement: {record}}}
+    redcap_records = {}
+
+    for record in response:
+        if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+            patient_id = record['patient_id']
+            # on regarde quel type_barcode est renseigné:
+            for index in record:
+                if index in barcode_index and record[index]:
+                    redcap_couple.append((patient_id, index))
+                    redcap_barcodes.append(record[index])
+                    redcap_records.setdefault((patient_id, record['redcap_repeat_instrument']), record)
+
+    return redcap_couple, redcap_barcodes, redcap_records
 
 
 with open('config_crf.yml', 'r') as ymlfile:
@@ -149,49 +224,28 @@ with open('config_crf.yml', 'r') as ymlfile:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
-response = project.export_records()
-
 barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_gcn_barcode']
-
 instrument_index = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
-# Correspondance des champs barcode et redcap_repeated_instrument
-# dans un résultat d'exportation de données via l'api redcap
-type_barcode_to_instrument = {'germline_dna_cng_barcode': 'germline_dna_sequencing',
-     'tumor_dna_barcode': 'tumor_dna_sequencing',
-     'rna_gcn_barcode': 'rna_sequencing'}
-
-barcode_redcap = [record[index] for record in response for index in record if index in barcode_index]
-barcode_redcap = list(filter(None, barcode_redcap))
+response = project.export_records()
 
 with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
-    dict_crf_barcode = barcode_info_crf(dict_reader)
+    couple_count = treat_crf(dict_reader, barcode_index)
 
-# Structure :
-# {patient_id: { instrument_instance: {record} } }
-records_redcap = sort_records(response)
+    # Les couple patient_id, type_barcode des records non vide de redcap
+    pack = treat_redcap_response(response, barcode_index)
+    redcap_couple, redcap_barcodes, redcap_records = pack
 
-records_to_import = []
+    records_to_import = []
 
-to_clone_barcode, to_create_barcode = get_to_clone(dict_crf_barcode, records_redcap, type_barcode_to_instrument)
+    pack = create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records)
+    to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
-for barcode in to_clone_barcode:
-    try:
-        records_to_import.append(clone_record(barcode,
-            dict_crf_barcode[barcode],
-            type_barcode_to_instrument,
-            records_redcap))
-    except KeyError as e:
-        print('KeyError clone_record()')
-        pass
 
-for barcode in to_create_barcode:
-    try:
-        records_to_import.append(create_record(barcode, dict_crf_barcode[barcode]))
-    except KeyError as e:
-        raise e
-        print('KeyError create_record()')
-        pass
+# TODO: remplir records_to_import avec to_clone_barcode, clone_chain, to_create_barcode, create_chain
+# -> ou faire faire ce remplissage à create_clon_chains ?
 
+
+sys.exit('exit')
 project.import_records(records_to_import)

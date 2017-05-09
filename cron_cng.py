@@ -9,10 +9,8 @@ import bs4 as BeautifulSoup
 import requests
 import yaml
 import re
-# import pprint
 from redcap import Project
-
-
+# import pprint
 # pp = pprint.PrettyPrinter(indent=1)
 
 
@@ -51,40 +49,6 @@ def get_instrument(patient_id):
     return instrument_type
 
 
-# TODO: Faire un objet set_parser
-
-# Lecture du fichier de configuration
-with open('config_cng.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-
-# Parser la page à l'adresse :
-page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
-soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
-
-
-# liste des att. des tag <a> avec pour nom 'set'
-href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
-
-list_path_cng = [config['url_cng'] + href for href in href_set]
-
-# liste des tag <a> avec pour nom 'set'
-set_cng = [l.string for l in soup.find_all('a') if re.search(r'^set\d/$', l.string)]
-
-# Partie API redcap
-api_url = 'http://ib101b/html/redcap/api/'
-project = Project(api_url, config['api_key'])
-
-# Regarde quels set sont déjà sur redcap
-fields_of_interest = ['path_on_cng', 'path_on_cng_rna', 'path_on_cng_constit']
-filled_path = project.export_records(fields=fields_of_interest)
-set_redcap_complete = [dict[field].split('/')[-1] for dict in filled_path for field in dict
-    if field in fields_of_interest and dict[field] is not '']
-
-# On fait la différence entre les set du cng et les set de redcap
-# On obtient les set qui n'ont pas encore reçus les info du CNG
-set_incomplete = set([l[:-1] for l in href_set]) - set(set_redcap_complete)
-
-
 def get_filename(set_url):
     """ Return all filenames in the set."""
 
@@ -94,94 +58,119 @@ def get_filename(set_url):
     return [filename.string for filename in soup.find_all('a') if re.search(r'fastq\.gz$', filename.string)]
 
 
-# Pour tout les set incomplete il nous faut les barecodes (à extraire des filenames)
+def update_record(record):
+
+    print(record)
+
+    # md5 = get_md5(config['url_cng'] + set + filename)
+
+    # 'path_on_cng': config['url_cng'] + set + filename,
+    # 'fastq_filename_cng': filename,
+    # 'md5_value': md5
+
+    # 'path_on_cng_constit': config['url_cng'] + set + filename,
+    # 'fastq_filename_cng_constit': filename,
+    # 'md5_value_constit': md5
+
+    # 'path_on_cng_rna': config['url_cng'] + set + filename,
+    # 'fastq_filename_cng_rna': filename,
+    # 'md5_value_rna': md5
+
+    # instrument_type = get_instrument(patient_id)
+
+    # record.update(dict)
+    # records[patient_id].append(record)
+
+    return None
+
+
+# Lecture du fichier de configuration
+with open('config_cng.yml', 'r') as ymlfile:
+    config = yaml.load(ymlfile)
+
+# # Parser la page à l'adresse :
+# page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
+# soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
+
+# # liste des att. des tag <a> avec pour nom 'set'
+# href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
+
+# list_path_cng = [config['url_cng'] + href for href in href_set]
+
+# Partie API redcap
+api_url = 'http://ib101b/html/redcap/api/'
+project = Project(api_url, config['api_key'])
+
+# Donne tout les records mais pas tout les champs des records
+fields_path = ['path_on_cng', 'path_on_cng_rna', 'path_on_cng_constit']
+records_path = project.export_records(fields=fields_path)
+
+# print(records_path)
+
+# /!\ Sera dans "to_complete" les records qui n'ont pas tout les champs
+# de "fields_path" de remplit
+
+# Utiliser any() ou all() ?
+to_complete = [record for record in records_path
+              for index in record
+              if index in fields_path if not record[index]]
+
+print(to_complete)
+
+sys.exit()
+
+# set_redcap_complete = [dict[field].split('/')[-1] for dict in filled_path for field in dict
+#     if field in fields_of_interest and dict[field] is not '']
+
+# On fait la différence entre les set du cng et les set de redcap
+# On obtient les set qui n'ont pas encore reçus les info du CNG
+# /!\ DEPRECATED
+set_incomplete = set([l[:-1] for l in href_set]) - set(set_redcap_complete)
+
+# On a les record redcap à completer:
+# to_complete
+# Il faut appeler la fonction get_barcode(url du set)
+# 
+
+
+# Pour tout les set incomplets il nous faut les barcodes (à extraire des filenames)
+# faire un dict {barcode: filename} à la volée
 nested_list_filename = [get_filename(config['url_cng'] + set) for set in set_incomplete]
-barcodes_cng = [get_barcode(filename) for sublist in nested_list_filename for filename in sublist]
+
+# A changer 1 barcode <-> n filename (n redcap_repeated_instance)
+dict_file_barcodes_cng = {get_barcode(filename): filename 
+                          for sublist in nested_list_filename 
+                          for filename in sublist}
+
+barcodes_cng = [barcode for barcode in dict_file_barcodes_cng]
+
+print(dict_file_barcodes_cng)
+sys.exit()
 
 # Les indices d'un record correspondant au barcode
 barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_gcn_barcode']
 
-
 response_barcode = project.export_records(fields=barcode_index)
-# Boucle alternative 1
-# for cng_barcode in list_barcode:
 
 # Création du dict par barcode
 record_by_barcode = {record[index]: record
-              for record in response_barcode
-              for index in record
-              if index in barcode_index and record[index]}
+                  for record in response_barcode
+                  for index in record
+                  if index in barcode_index and record[index]}
 
 redcap_barcodes = [barcode for barcode in record_by_barcode]
 
-# redcap & CNG = record à completé dans redcap
 # CNG - redcap = les barcodes/record qui posent problème
 if set(barcodes_cng) - set(redcap_barcodes):
     for barcode in set(barcodes_cng) - set(redcap_barcodes):
         # TODO: log à la place d'un print pour la production
-        print('Warning: le barcode ' + barcode + ' est présent dans le CNG et pas dans le RedCap.')
+        # print('Warning: le barcode ' + barcode + ' est présent dans le CNG et pas dans le RedCap.')
+        pass
 
+# redcap & CNG = record à completé dans redcap
+to_update = set(barcodes_cng) & set(redcap_barcodes)
+for barcode in to_update:
 
+    updated_record = update_record(record_by_barcode[barcode])
 
-def set_to_records(set):
-    """ Return a list of record dictionary from all files in a set."""
-
-    filenames = get_filename(config['url_cng'] + set, soupObject)
-
-    records = {}
-
-    for filename in filenames:
-
-        md5 = get_md5(config['url_cng'] + set + filename)
-        barcode = get_barcode(config['url_cng'] + set + filename)
-        patient_id = get_patient_id(barcode, ['toto', 'au chateau'])
-        instrument_type = get_instrument(patient_id)
-
-        records.setdefault(patient_id, [])
-
-        # Ces info seront déjà présentent sur le RedCap après intérogation du CRF
-        record = {'patient_id': patient_id, 'redcap_repeat_instrument': instrument_type,
-        'redcap_repeat_instance': len(records[patient_id]) + 1}
-
-        # Ambranchement en fonction de instrument_type:
-        # tumor_dna_sequencing | germline_dna_sequencing | rna_sequencing
-        if instrument_type == 'tumor_dna_sequencing':
-            # Partie de dict spécifique à l'instrument, à fusionner avec record
-            dict = {
-                'path_on_cng': config['url_cng'] + set + filename,
-                'tumor_dna_barcode': barcode,
-                'fastq_filename_cng': filename,
-                'md5_value': md5
-            }
-
-        elif instrument_type == 'germline_dna_sequencing':
-
-            dict = {
-                'path_on_cng_constit': config['url_cng'] + set + filename,
-                'germline_dna_cng_barcode': barcode,
-                'fastq_filename_cng_constit': filename,
-                'md5_value_constit': md5
-            }
-
-        elif instrument_type == 'rna_sequencing':
-
-            dict = {
-                'path_on_cng_rna': config['url_cng'] + set + filename,
-                'rna_gcn_barcode': barcode,
-                'fastq_filename_cng_rna': filename,
-                'md5_value_rna': md5
-            }
-
-        record.update(dict)
-        records[patient_id].append(record)
-
-    return records
-
-
-# records = [record for record_dict in map(set_to_records, set_import) for record in record_dict]
-# # -> ['B00HSEMDEFAULT', 'B00HSENDEFAULT', 'B00HSEYDEFAULT', 
-
-# print(records)
-
-# Partie importation des set
-# project.import_records(records)
+    # project.import_records(records)
