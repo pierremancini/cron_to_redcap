@@ -64,15 +64,15 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
          'tumor_dna_barcode': 'tumor_dna_sequencing',
          'rna_cng_barcode': 'rna_sequencing'}
 
-    def max_instance_number(couple):
+    def max_instance_number():
         """  """
 
         # On determine l'instance number
         # et on incrémente
         max_instance_number = 0
         for record in redcap_records[(patient_id, instrument)]:
-            if record['redcap_repeat_instance'] > max_instance_number:
-                max_instance_number = record['redcap_repeat_instance']
+            if int(record['redcap_repeat_instance']) > max_instance_number:
+                max_instance_number = int(record['redcap_repeat_instance'])
 
         return max_instance_number
 
@@ -176,19 +176,6 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         if doublon and clone:
             clone_chain = clone_chain_record(clone_chain)
 
-    print('to_clone_barcode:')
-    print(to_clone_barcode)
-    print()
-    print('clone_chain:')
-    print(clone_chain)
-    print()
-    print('to_create_barcode:')
-    print(to_create_barcode)
-    print()
-    print('create_chain:')
-    print(create_chain)
-
-    sys.exit('exit create clone chains')
     return (to_clone_barcode, clone_chain, to_create_barcode, create_chain)
 
 
@@ -213,7 +200,7 @@ def treat_redcap_response(response, barcode_index):
                 if index in barcode_index and record[index]:
                     redcap_couple.append((patient_id, index))
                     redcap_barcodes.append(record[index])
-                    redcap_records.setdefault((patient_id, record['redcap_repeat_instrument']), record)
+                    redcap_records.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
 
     return redcap_couple, redcap_barcodes, redcap_records
 
