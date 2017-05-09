@@ -2,26 +2,23 @@
 # -*- coding: utf-8 -*-
 
 """
-    Ce script est destiné à être appelé par un cron pour interagir avec le CRF.
+    Ce script est destiné à être appelé par un cron pour une interaction
+    entre le CRF et l'instance de Bergonié de RedCap.
 """
 
 import os
 import csv
-import sys
 import yaml
 from redcap import Project
 import itertools
 
 
 # TODO: Mettre logger les erreurs si le script est en production
+# Avec rotation de fichiers ? Plusieurs fichiers ?
+
 
 def treat_crf(reader, barcode_index):
     """
-        1. Format data from CRF's .csv file.
-        2. Find all doublon in CRF file.
-
-        TODO: Changer la doc pour les paramètres
-
         :param reader: Content of .tsv's CRF file
         :param barcode_index: different types of index corresponding to barcode
     """
@@ -44,29 +41,23 @@ def treat_crf(reader, barcode_index):
     return couple_count
 
 
-def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records):
+def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records, type_barcode_to_instrument):
     """
-        TODO: changer la doc
-
-        :param dict_crf: First output of treat_crf()
-        :param doublons: ?
-        :param redcap_couple: ...
+        :param couple_count: couples from CRF file with their occurences
+        :param redcap_couple: couples from RedCap instance
+        :param redcap_barcodes: barcodes values of RedCap
+        :param redcap_records: records sorted by couple (patient_id, type_barcode)
         :param type_barcode_to_instrument: give instrument type with barcode type
     """
 
-    # A comparer avec t_redcap pour avoir chained_barcode
-    instrument_to_barcode = {'germline_dna_sequencing': 'germline_dna_cng_barcode',
-         'tumor_dna_sequencing': 'tumor_dna_barcode',
-         'rna_sequencing': 'rna_cng_barcode'}
-
-    # Correspondance des champs barcode et redcap_repeated_instrument
-    # dans un résultat d'exportation de données via l'api redcap
-    type_barcode_to_instrument = {'germline_dna_cng_barcode': 'germline_dna_sequencing',
-         'tumor_dna_barcode': 'tumor_dna_sequencing',
-         'rna_cng_barcode': 'rna_sequencing'}
-
     def max_instance_number():
-        """  """
+        """ Return maximal intance number from a list of record.
+
+            List of record: Combination between the parameter redcap_records
+            and the couple (patient_id, instrument).
+
+            Nb: patient_id, instrument are variable global to the upper function.
+        """
 
         # On determine l'instance number
         # et on incrémente
@@ -79,7 +70,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
     def clone_record():
         """
-
+            Create record that is a clone of RedCap record.
         """
         if barcode not in redcap_barcodes:
             instance_number = max_instance_number() + 1
@@ -93,7 +84,10 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
     def clone_chain_record(clone_chain):
         """
-            :param clone_chain:
+            1. Create a chain of cloned record 
+            2. add it to other chained record i.e. clone_chain
+
+            :param clone_chain: other chained record
         """
 
         new_records = []
@@ -113,8 +107,9 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         return clone_chain
 
     def create_record():
-        """
-            Create new record for redcap.
+        """ 
+            Create a record that has no duplicate (same patient_di, type barcode) in
+            RedCap instance.
         """
 
         new_record = {'redcap_repeat_instrument': instrument,
@@ -125,7 +120,10 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
     def create_chain_record(create_chain):
         """
-            :param create_chain:
+            1. Create a chain of record 
+            2. Add it to other chained record i.e. create_chain.
+
+            :param create_chain: other chained record
         """
 
         new_records = []
@@ -142,9 +140,6 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         create_chain += new_records
 
         return create_chain
-
-
-    # Les record vide ne doivent pas apparaitrent
 
     to_clone_barcode = []
     clone_chain = []
@@ -181,7 +176,10 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
 
 def treat_redcap_response(response, barcode_index):
-    """ """
+    """ 
+        :param response: 'response' list from RedCap API
+        :param barcode_index: different type of barcode
+    """
 
     # Strucuture:
     # (patient_id, type_barcode)
@@ -212,8 +210,10 @@ with open('config_crf.yml', 'r') as ymlfile:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
-barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_cng_barcode']
-instrument_index = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
+# Correspondance des champs barcode et redcap_repeated_instrument
+# dans un résultat d'exportation de données via l'api redcap
+type_barcode_to_instrument = config['type_barcode_to_instrument']
+barcode_index = type_barcode_to_instrument.keys()
 
 response = project.export_records()
 
@@ -225,7 +225,8 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
     pack = treat_redcap_response(response, barcode_index)
     redcap_couple, redcap_barcodes, redcap_records = pack
 
-    pack = create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records)
+    pack = create_clone_chains(couple_count, redcap_couple,
+        redcap_barcodes, redcap_records, type_barcode_to_instrument)
     to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
