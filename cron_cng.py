@@ -13,6 +13,9 @@ from redcap import Project
 # import pprint
 # pp = pprint.PrettyPrinter(indent=1)
 
+# TODO: Mettre logger les erreurs si le script est en production
+# Avec rotation de fichiers ? Plusieurs fichiers ?
+
 
 def get_barcode(fastq):
     """ Extract barcode from fastq file name ."""
@@ -103,74 +106,66 @@ project = Project(api_url, config['api_key'])
 
 # Donne tout les records mais pas tout les champs des records
 fields_path = ['path_on_cng', 'path_on_cng_rna', 'path_on_cng_constit']
-records_path = project.export_records(fields=fields_path)
+# À aller chercher dans config_crf.yml ?
+barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_cng_barcode']
+
+records = project.export_records()
 
 # print(records_path)
 
 # /!\ Sera dans "to_complete" les records qui n'ont pas tout les champs
 # de "fields_path" de remplit
 
-# Utiliser any() ou all() ?
-to_complete = [record for record in records_path
-              for index in record
-              if index in fields_path if not record[index]]
+# On n'utilise pas les records totalement vides
 
-print(to_complete)
+# Record pas totalement vide mais n'ayant pas de les champs path de remplis
+to_complete = []
 
-sys.exit()
+for record in records:
+    empty_path = True
+    for index in record:
+        if index in fields_path and record[index]:
+            empty_path = False
+    if empty_path and record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+        to_complete.append(record)
 
-# set_redcap_complete = [dict[field].split('/')[-1] for dict in filled_path for field in dict
-#     if field in fields_of_interest and dict[field] is not '']
+# # Pour tout les set incomplets il nous faut les barcodes (à extraire des filenames)
+# # faire un dict {barcode: filename} à la volée
+# nested_list_filename = [get_filename(config['url_cng'] + set) for set in set_incomplete]
 
-# On fait la différence entre les set du cng et les set de redcap
-# On obtient les set qui n'ont pas encore reçus les info du CNG
-# /!\ DEPRECATED
-set_incomplete = set([l[:-1] for l in href_set]) - set(set_redcap_complete)
+# # A changer 1 barcode <-> n filename (n redcap_repeated_instance)
+# dict_file_barcodes_cng = {get_barcode(filename): filename
+#                           for sublist in nested_list_filename
+#                           for filename in sublist}
 
-# On a les record redcap à completer:
-# to_complete
-# Il faut appeler la fonction get_barcode(url du set)
-# 
+# barcodes_cng = [barcode for barcode in dict_file_barcodes_cng]
+
+# # Les indices d'un record correspondant au barcode
+# barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_gcn_barcode']
+
+# response_barcode = project.export_records(fields=barcode_index)
+
+# # Création du dict par barcode
+# record_by_barcode = {record[index]: record
+#                   for record in response_barcode
+#                   for index in record
+#                   if index in barcode_index and record[index]}
+
+# redcap_barcodes = [barcode for barcode in record_by_barcode]
+
+# # CNG - redcap = les barcodes/record qui posent problème
+# if set(barcodes_cng) - set(redcap_barcodes):
+#     for barcode in set(barcodes_cng) - set(redcap_barcodes):
+#         # TODO: log à la place d'un print pour la production
+#         # print('Warning: le barcode ' + barcode + ' est présent dans le CNG et pas dans le RedCap.')
+#         pass
+
+# # redcap & CNG = record à completé dans redcap
+# to_update = set(barcodes_cng) & set(redcap_barcodes)
+# for barcode in to_update:
+
+#     updated_record = update_record(record_by_barcode[barcode])
 
 
-# Pour tout les set incomplets il nous faut les barcodes (à extraire des filenames)
-# faire un dict {barcode: filename} à la volée
-nested_list_filename = [get_filename(config['url_cng'] + set) for set in set_incomplete]
-
-# A changer 1 barcode <-> n filename (n redcap_repeated_instance)
-dict_file_barcodes_cng = {get_barcode(filename): filename 
-                          for sublist in nested_list_filename 
-                          for filename in sublist}
-
-barcodes_cng = [barcode for barcode in dict_file_barcodes_cng]
-
-print(dict_file_barcodes_cng)
-sys.exit()
-
-# Les indices d'un record correspondant au barcode
-barcode_index = ['germline_dna_cng_barcode', 'tumor_dna_barcode', 'rna_gcn_barcode']
-
-response_barcode = project.export_records(fields=barcode_index)
-
-# Création du dict par barcode
-record_by_barcode = {record[index]: record
-                  for record in response_barcode
-                  for index in record
-                  if index in barcode_index and record[index]}
-
-redcap_barcodes = [barcode for barcode in record_by_barcode]
-
-# CNG - redcap = les barcodes/record qui posent problème
-if set(barcodes_cng) - set(redcap_barcodes):
-    for barcode in set(barcodes_cng) - set(redcap_barcodes):
-        # TODO: log à la place d'un print pour la production
-        # print('Warning: le barcode ' + barcode + ' est présent dans le CNG et pas dans le RedCap.')
-        pass
-
-# redcap & CNG = record à completé dans redcap
-to_update = set(barcodes_cng) & set(redcap_barcodes)
-for barcode in to_update:
-
-    updated_record = update_record(record_by_barcode[barcode])
-
-    # project.import_records(records)
+sys.exit('exit')
+project.import_records(updated_records)

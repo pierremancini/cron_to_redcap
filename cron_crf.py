@@ -84,7 +84,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
     def clone_chain_record(clone_chain):
         """
-            1. Create a chain of cloned record 
+            1. Create a chain of cloned record
             2. add it to other chained record i.e. clone_chain
 
             :param clone_chain: other chained record
@@ -107,7 +107,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         return clone_chain
 
     def create_record():
-        """ 
+        """
             Create a record that has no duplicate (same patient_di, type barcode) in
             RedCap instance.
         """
@@ -120,7 +120,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
     def create_chain_record(create_chain):
         """
-            1. Create a chain of record 
+            1. Create a chain of record
             2. Add it to other chained record i.e. create_chain.
 
             :param create_chain: other chained record
