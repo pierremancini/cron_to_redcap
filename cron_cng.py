@@ -72,32 +72,6 @@ def get_filenames(set_url):
     return [filename.string for filename in soup.find_all('a') if re.search(r'fastq\.gz$', filename.string)]
 
 
-def clone_chain_record(clone_chain, type_barcode_to_instrument, records_by_couple):
-    """
-        TODO: A addapter à ce script
-
-        1. Create a chain of cloned record
-        2. add it to other chained record i.e. clone_chain
-
-        :param clone_chain: other chained record
-    """
-
-    new_records = []
-    instance_number = max_instance_number((patient_id, instrument),
-        records_by_couple) + 1
-    for barcode in couple_count[couple]['barcode']:
-        if barcode not in redcap_barcodes:
-            new_records.append({'redcap_repeat_instrument': instrument,
-                              'patient_id': patient_id,
-                              type_barcode: barcode,
-                              'redcap_repeat_instance': instance_number})
-            instance_number += 1
-
-    clone_chain += new_records
-
-    return clone_chain
-
-
 def max_instance_number(couple, records_by_couple):
     """ Return maximal intance number from a list of record.
 
@@ -117,32 +91,6 @@ def max_instance_number(couple, records_by_couple):
             max_instance_number = int(record['redcap_repeat_instance'])
 
     return max_instance_number
-
-
-# Dans le cas d'un duplicat de barcode ce script doit cloner le record redcap correspondant
-# Nb: ce cas sera exceptionnel
-def clone_record(record_to_clone, type_barcode_to_instrument, records_by_couple):
-    """
-        Create record that is a clone of RedCap record.
-    """
-
-    for index in record_to_clone:
-        if index in barcode_index and record_to_clone[index]:
-            type_barcode = index
-            barcode = record_to_clone[index]
-
-    patient_id = record_to_clone['patient_id']
-    instrument = type_barcode_to_instrument[type_barcode]
-
-    instance_number = max_instance_number((patient_id, instrument),
-        records_by_couple) + 1
-    new_record = {'redcap_repeat_instrument': instrument,
-                  'patient_id': patient_id,
-                  type_barcode: barcode,
-                  'redcap_repeat_instance': instance_number
-                  }
-
-    return new_record
 
 
 # Lecture du fichier de configuration
@@ -214,46 +162,140 @@ list_set_cng = [href[:-1] for href in href_set]
 set_to_complete = set(list_set_cng) - set(sets_completed)
 
 
-def update(record, about_record):
-    """ Update RedCap record with CNG data. """
+def multiple_update(record_list, info_cng_list):
+    """
+        :param info_cng:
+        :param record:
+    """
 
-    print('about_record')
-    print(about_record)
-    sys.exit()
+    records = []
+    index = 0
+
+    for record in record_list:
+        record.update(info_cng_list[index])
+        fastq_path = config['url_cng'] + '/' + record['set'] + '/' + record['fullname']
+        record['md5_value'] = get_md5(fastq_path)
+
+        records.append(record)
+        index += 1
+
+    return records
+
+
+def update(record, info_cng):
+    """ Update RedCap record with CNG data.
+
+        :parama info_cng: information du tirées du nom de fichier fastq avec le barcode
+        correspondant.
+    """
+
+    record.update(info_cng)
+    fastq_path = config['url_cng'] + '/' + record['set'] + '/' + record['fullname']
+    record['md5_value'] = get_md5(fastq_path)
+
+    return record
+
+
+# Dans le cas d'un duplicat de barcode ce script doit cloner le record redcap correspondant
+# Nb: ce cas sera exceptionnel
+def clone_record(record_to_clone, type_barcode_to_instrument, records_by_couple):
+    """
+        Create record that is a clone of RedCap record.
+    """
+
+    for index in record_to_clone:
+        if index in barcode_index and record_to_clone[index]:
+            type_barcode = index
+            barcode = record_to_clone[index]
+
+    patient_id = record_to_clone['patient_id']
+    instrument = type_barcode_to_instrument[type_barcode]
+
+    instance_number = max_instance_number((patient_id, instrument),
+        records_by_couple) + 1
+    new_record = {'redcap_repeat_instrument': instrument,
+                  'patient_id': patient_id,
+                  type_barcode: barcode,
+                  'redcap_repeat_instance': instance_number
+                  }
+
+    return new_record
+
+
+def clone_chain_record(record_to_clone, type_barcode_to_instrument, records_by_couple, num_of_clone):
+    """
+        Créer un série de record chainés.
+
+        C'est à dire une série de record dont les instance_number se suivent.
+
+        :param num_of_clone: number of clone we are looking for
+
+        -------------
+        :return: Les clone ET le record original
+
+    """
+
+    records = []
+
+    for index in record_to_clone:
+        if index in barcode_index and record_to_clone[index]:
+            type_barcode = index
+            barcode = record_to_clone[index]
+
+    patient_id = record_to_clone['patient_id']
+    instrument = type_barcode_to_instrument[type_barcode]
+
+    count = 0
+    instance_number = max_instance_number((patient_id, instrument),
+        records_by_couple) + 1
+    while count != num_of_clone:
+        records.append({'redcap_repeat_instrument': instrument,
+                  'patient_id': patient_id,
+                  type_barcode: barcode,
+                  'redcap_repeat_instance': instance_number})
+        instance_number += 1
+        count += 1
+
+    records.append(record_to_clone)
+
+    return records
 
 
 updated_records = []
 
 # Dictionnaire avec les barcodes en 1ère clé
 dicts_fastq_info = info_from_set(set_to_complete)
+
 for barcode in dicts_fastq_info:
-    if len(dicts_fastq_info[barcode]) > 1:
-        try:
-            to_complete[barcode]
-        except KeyError as e:
-            print('Le barcode-duplicat n\'est pas présent dans le RedCap: ' + barcode)
-        # Clonage
-        else:
+    try:
+        to_complete[barcode]
+    except KeyError as e:
+        print('Warning: Le barcode-duplicat n\'est pas présent dans le RedCap: ' + barcode)
+    else:
+        if len(dicts_fastq_info[barcode]) > 1:
             # On determine si on chain_clone et si on clone:
             if len(dicts_fastq_info[barcode]) > 2:
                 # Chain clone (cas très exceptionnel)
-                # TODO: utiliser la fonction
-                # to_update = clone_chain_record(dicts_fastq_info[barcode], type_barcode_to_instrument,
-                #     records_by_couple)
-                pass
+                # Comme c'est exceptionnel il fuat logger
+                multile_to_update = clone_chain_record(to_complete[barcode], type_barcode_to_instrument,
+                    records_by_couple, len(dicts_fastq_info[barcode]) - 1)
+
+                updated_records += multiple_update(multile_to_update, dicts_fastq_info[barcode])
+
             else:
                 # Clone simple
                 new_record = clone_record(to_complete[barcode], type_barcode_to_instrument,
                     records_by_couple)
 
                 # Completion de l'original et du clone
-                updated_new_record = update(new_record, dicts_fastq_info[barcode])
-                updated_model_record = update(to_complete[barcode], dicts_fastq_info[barcode])
+                updated_new_record = update(new_record, dicts_fastq_info[barcode][0])
+                updated_model_record = update(to_complete[barcode], dicts_fastq_info[barcode][1])
 
                 updated_records += [updated_new_record, updated_model_record]
-    else:
-        pass
-        print(len(dicts_fastq_info[barcode]))
+        else:
+            # Update classique sans clonage
+            updated_records.append(update(to_complete[barcode], dicts_fastq_info[barcode][0]))
+
 
 sys.exit('exit')
 project.import_records(updated_records)
