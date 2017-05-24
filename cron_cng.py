@@ -10,9 +10,37 @@ import requests
 import yaml
 import re
 from redcap import Project
+import logging
+from logging.handlers import RotatingFileHandler
+
 
 # TODO: Mettre logger les erreurs si le script est en production
 # Avec rotation de fichiers ? Plusieurs fichiers ?
+
+
+def set_logger(logger_level):
+    """ """
+
+    # Création du logger
+
+    # Root logger
+    logger = logging.getLogger()
+    logger.setLevel(logger_level)
+
+    path = '/var/log/cron_to_redcap/cron_cng/cron_cng.log'
+    max_size = 100000000
+    backupCount = 10
+    handler = RotatingFileHandler(path, 'a', max_size, backupCount)
+    formatter = logging.Formatter('%(process)d :: %(asctime)s :: %(levelname)s :: %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    formatter = logging.Formatter('%(levelname)s :: %(message)s')
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    return logger
 
 
 def get_md5(fastq_path):
@@ -49,15 +77,17 @@ def info_from_set(set_to_complete):
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
-            dict_fastq_info = {'set': set,
-                               'fullname': fastq,
-                               'project': project,
-                               'kit_code': kit_code,
-                               'barcode': barcode,
-                               'lane': lane,
-                               'read': read,
-                               'flowcell': flowcell,
-                               'tag': tag}
+            md5 = get_md5(set_url + '/' + fastq)
+            dict_fastq_info = {'Set on cng': set,
+                               'Path on cng': fastq,
+                               'md5 value': md5,
+                               'Project': project,
+                               'Kit code': kit_code,
+                               'Barcode': barcode,
+                               'Lane': lane,
+                               'Read': read,
+                               'Flowcell': flowcell,
+                               'Tag': tag}
             dicts_fastq_info.setdefault(barcode, []).append(dict_fastq_info)
 
     return dicts_fastq_info
@@ -93,6 +123,22 @@ def max_instance_number(couple, records_by_couple):
     return max_instance_number
 
 
+logger = set_logger(logging.INFO)
+
+
+# On log les uncaught exceptions
+def handle_exception(exc_type, exc_value, exc_traceback):
+    # Si le script 
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+sys.excepthook = handle_exception
+
+
 # Lecture du fichier de configuration
 with open('config_cng.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
@@ -104,13 +150,22 @@ with open('config_crf.yml', 'r') as crfyml:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
-# Donne tout les records mais pas tout les champs des records
-fields_path = ['path_on_cng', 'path_on_cng_rna', 'path_on_cng_constit']
-# À aller chercher dans config_crf.yml ?
-type_barcode_to_instrument = config_crf['type_barcode_to_instrument']
-barcode_index = list(type_barcode_to_instrument.keys())
 
-set_index = ['set_on_cng', 'set_on_cng_rna', 'set_on_cng_constit']
+# Strucure:
+# {instrument: [field_name, field_name]}
+# ou
+# {field_label: {}}
+redcap_fields = {}
+
+# Définition dynamique (par rapport au champs créer dans RedCap) des types
+for metadict in project.metadata:
+    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
+
+# Field labels qui nous interessent dans ce script:
+# 'Read', 'Path on cng', 'FastQ filename CNG', 'RNA CNG barcode', 'Set on cng',
+# 'Project', 'Lane'  et 'Barcode'
+# On fait un test avec un backup du fichier .csv des instruments RedCap: Multipli_DataDictionary_2017-05-19.csv
+
 
 response = project.export_records()
 
@@ -128,28 +183,23 @@ records_by_couple = {}
 
 for record in response:
     # Creation de records_by_couple
-    if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+    instrument = record['redcap_repeat_instrument']
+    if record['redcap_repeat_instance'] and instrument:
         patient_id = record['patient_id']
-        for index in record:
-            if index in barcode_index and record[index]:
-                records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
-    empty_path = True
-    for index in record:
-        if index in fields_path and record[index]:
-            empty_path = False
-    if empty_path:
-        if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
-            for index in barcode_index:
-                if record[index]:
-                    barcode = record[index]
-            # Un seul record par clé barcode ?
-            if to_complete.setdefault(barcode, record) != record:
-                print('Warning: dans le redcap il y a plusieurs records sans path partageant le même barcode')
-    else:
-        # On retrouve le set dans le champ set
-        set_completed = [record[index] for index in record if index in set_index if record[index]]
+        if record[redcap_fields['Barcode'][instrument]]:
+            records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
+        empty_path = True
+        if not record[redcap_fields['Path on cng'][instrument]]:
+            if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+                if record[redcap_fields['Barcode'][instrument]]:
+                    barcode = record[redcap_fields['Barcode'][instrument]]
+                # Un seul record par clé barcode ?
+                if to_complete.setdefault(barcode, record) != record:
+                    print('Warning: dans le redcap il y a plusieurs records sans path partageant le même barcode')
+        else:
+            # On retrouve le set dans le champ set
+            sets_completed.append(record[redcap_fields['Set'][instrument]])
 
-        sets_completed.extend(set_completed)
 
 # Parser la page à l'adresse :
 page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
@@ -162,54 +212,59 @@ list_set_cng = [href[:-1] for href in href_set]
 set_to_complete = set(list_set_cng) - set(sets_completed)
 
 
-def multiple_update(record_list, info_cng_list):
+def multiple_update(record_list, redcap_fields, info_cng):
     """
         :param info_cng:
         :param record:
     """
 
     records = []
-    index = 0
+    count = 0
 
+    info_for_record = {}
     for record in record_list:
-        record.update(info_cng_list[index])
-        fastq_path = config['url_cng'] + '/' + record['set'] + '/' + record['fullname']
-        record['md5_value'] = get_md5(fastq_path)
-
+        instrument = record['redcap_repeat_instrument']
+        for index in info_cng[count]:
+            info_for_record[redcap_fields[index][instrument]] = info_cng[count][index]
+        record.update(info_for_record)
         records.append(record)
-        index += 1
+        count += 1
 
     return records
 
 
-def update(record, info_cng):
+def update(record, redcap_fields, info_cng):
     """ Update RedCap record with CNG data.
 
         :parama info_cng: information du tirées du nom de fichier fastq avec le barcode
         correspondant.
     """
 
-    record.update(info_cng)
-    fastq_path = config['url_cng'] + '/' + record['set'] + '/' + record['fullname']
-    record['md5_value'] = get_md5(fastq_path)
+    info_for_record = {}
+    instrument = record['redcap_repeat_instrument']
+    for index in info_cng:
+        info_for_record[redcap_fields[index][instrument]] = info_cng[index]
+
+    record.update(info_for_record)
 
     return record
 
 
 # Dans le cas d'un duplicat de barcode ce script doit cloner le record redcap correspondant
 # Nb: ce cas sera exceptionnel
-def clone_record(record_to_clone, type_barcode_to_instrument, records_by_couple):
+def clone_record(record_to_clone, redcap_fields, records_by_couple):
     """
         Create record that is a clone of RedCap record.
     """
 
+    instrument = record_to_clone['redcap_repeat_instrument']
+    type_barcode = redcap_fields['Barcode'][instrument]
+
     for index in record_to_clone:
-        if index in barcode_index and record_to_clone[index]:
-            type_barcode = index
-            barcode = record_to_clone[index]
+        if record_to_clone[type_barcode]:
+            barcode = record_to_clone[type_barcode]
 
     patient_id = record_to_clone['patient_id']
-    instrument = type_barcode_to_instrument[type_barcode]
 
     instance_number = max_instance_number((patient_id, instrument),
         records_by_couple) + 1
@@ -222,7 +277,7 @@ def clone_record(record_to_clone, type_barcode_to_instrument, records_by_couple)
     return new_record
 
 
-def clone_chain_record(record_to_clone, type_barcode_to_instrument, records_by_couple, num_of_clone):
+def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of_clone):
     """
         Créer un série de record chainés.
 
@@ -236,14 +291,14 @@ def clone_chain_record(record_to_clone, type_barcode_to_instrument, records_by_c
     """
 
     records = []
+    instrument = record_to_clone['redcap_repeat_instrument']
+    type_barcode = redcap_fields['Barcode'][instrument]
 
     for index in record_to_clone:
-        if index in barcode_index and record_to_clone[index]:
-            type_barcode = index
-            barcode = record_to_clone[index]
+        if record_to_clone[type_barcode]:
+            barcode = record_to_clone[type_barcode]
 
     patient_id = record_to_clone['patient_id']
-    instrument = type_barcode_to_instrument[type_barcode]
 
     count = 0
     instance_number = max_instance_number((patient_id, instrument),
@@ -270,32 +325,30 @@ for barcode in dicts_fastq_info:
     try:
         to_complete[barcode]
     except KeyError as e:
-        print('Warning: Le barcode-duplicat n\'est pas présent dans le RedCap: ' + barcode)
+        logger.warning('Warning: Le barcode-duplicat n\'est pas présent dans le RedCap: ' + barcode)
     else:
         if len(dicts_fastq_info[barcode]) > 1:
             # On determine si on chain_clone et si on clone:
             if len(dicts_fastq_info[barcode]) > 2:
                 # Chain clone (cas très exceptionnel)
-                # Comme c'est exceptionnel il fuat logger
-                multile_to_update = clone_chain_record(to_complete[barcode], type_barcode_to_instrument,
+                # Comme c'est exceptionnel il faut logger
+                multiple_to_update = clone_chain_record(to_complete[barcode], redcap_fields,
                     records_by_couple, len(dicts_fastq_info[barcode]) - 1)
 
-                updated_records += multiple_update(multile_to_update, dicts_fastq_info[barcode])
+                updated_records += multiple_update(multiple_to_update, redcap_fields, dicts_fastq_info[barcode])
 
             else:
                 # Clone simple
-                new_record = clone_record(to_complete[barcode], type_barcode_to_instrument,
+                new_record = clone_record(to_complete[barcode], redcap_fields,
                     records_by_couple)
 
                 # Completion de l'original et du clone
-                updated_new_record = update(new_record, dicts_fastq_info[barcode][0])
-                updated_model_record = update(to_complete[barcode], dicts_fastq_info[barcode][1])
+                updated_new_record = update(new_record, redcap_fields, dicts_fastq_info[barcode][0])
+                updated_model_record = update(to_complete[barcode], redcap_fields, dicts_fastq_info[barcode][1])
 
                 updated_records += [updated_new_record, updated_model_record]
         else:
             # Update classique sans clonage
-            updated_records.append(update(to_complete[barcode], dicts_fastq_info[barcode][0]))
+            updated_records.append(update(to_complete[barcode], redcap_fields, dicts_fastq_info[barcode][0]))
 
-
-sys.exit('exit')
 project.import_records(updated_records)
