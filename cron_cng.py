@@ -69,7 +69,7 @@ def info_from_set(set_to_complete):
     dicts_fastq_info = {}
 
     for set in set_to_complete:
-        set_url = config['url_cng'] + '/' + set
+        set_url = config['url_cng'] + set
         page = requests.get(set_url, auth=(config['login'], config['password']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
@@ -78,8 +78,9 @@ def info_from_set(set_to_complete):
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
             md5 = get_md5(set_url + '/' + fastq)
-            dict_fastq_info = {'Set on cng': set,
-                               'Path on cng': fastq,
+            dict_fastq_info = {'Set': set,
+                               'FastQ filename CNG': fastq,
+                               'Path on cng': set_url,
                                'md5 value': md5,
                                'Project': project,
                                'Kit code': kit_code,
