@@ -27,9 +27,9 @@ def set_logger():
 
     # Root logger
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.WARNING)
 
-    path = '/var/log/cron_to_redcap/cron_cng/cron_cng.log'
+    path = '/var/log/cron_to_redcap/cron_crf/cron_crf.log'
     max_size = 100000000
     backupCount = 10
     handler = RotatingFileHandler(path, 'a', max_size, backupCount)
@@ -94,19 +94,23 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         return max_instance_number
 
-    def clone_record():
+    def clone_record(to_clone_barcode):
         """
             Create record that is a clone of RedCap record.
         """
-        if barcode not in redcap_barcodes:
+
+        new_record = {}
+
+        if barcode[0] not in redcap_barcodes:
             instance_number = max_instance_number() + 1
             new_record = {'redcap_repeat_instrument': instrument,
                           'patient_id': patient_id,
                           type_barcode: barcode[0],
                           'redcap_repeat_instance': instance_number
                           }
+            to_clone_barcode += new_record
 
-        return new_record
+        return to_clone_barcode
 
     def clone_chain_record(clone_chain):
         """
@@ -132,17 +136,21 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         return clone_chain
 
-    def create_record():
+
+    def create_record(to_create_barcode):
         """
             Create a record that has no duplicate (same patient_di, type barcode) in
             RedCap instance.
         """
-        if barcode not in redcap_barcodes:
+
+        if barcode[0] not in redcap_barcodes:
             new_record = {'redcap_repeat_instrument': instrument,
                           'patient_id': patient_id,
                           type_barcode: barcode[0]}
+            to_create_barcode += new_record
 
-        return new_record
+        return to_create_barcode
+
 
     def create_chain_record(create_chain):
         """
@@ -175,7 +183,6 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
     for couple in couple_count:
 
         # Closure pour les fonctions clone/create/chain
-        barcode = couple_count[couple]['barcode']
         patient_id = couple[0]
         type_barcode = couple[1]
         instrument = type_barcode_to_instrument[couple[1]]
@@ -186,11 +193,13 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         # Existe-t-il déjà un record dans redcap avec le même patient_id et le même type de barcode:
         clone = (couple[0], couple[1]) in redcap_couple
 
+        barcode = couple_count[couple]['barcode']
+
         if (not doublon) and (not clone):
-            to_create_barcode.append(create_record())
+            to_create_barcode = create_record(to_create_barcode)
 
         if (not doublon) and clone:
-            to_clone_barcode.append(clone_record())
+            to_clone_barcode = clone_record(to_clone_barcode)
 
         if doublon and (not clone):
             create_chain = create_chain_record(create_chain)
@@ -230,6 +239,8 @@ def treat_redcap_response(response, barcode_index):
     return redcap_couple, redcap_barcodes, redcap_records
 
 
+logger = set_logger()
+
 with open('config_crf.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
 
@@ -258,8 +269,4 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
                                     to_create_barcode, create_chain))
 
-
-print('len(records_to_import)')
-print(len(records_to_import))
-sys.exit('exit')
 project.import_records(records_to_import)
