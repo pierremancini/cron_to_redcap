@@ -7,14 +7,40 @@
 """
 
 import os
+import sys
 import csv
 import yaml
 from redcap import Project
 import itertools
-
+import logging
+from logging.handlers import RotatingFileHandler
 
 # TODO: Mettre logger les erreurs si le script est en production
 # Avec rotation de fichiers ? Plusieurs fichiers ?
+
+
+def set_logger():
+    """ """
+    formatter = logging.Formatter('%(process)d :: %(asctime)s :: %(levelname)s :: %(message)s')
+
+    # Création du logger
+
+    # Root logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    path = '/var/log/cron_to_redcap/cron_cng/cron_cng.log'
+    max_size = 100000000
+    backupCount = 10
+    handler = RotatingFileHandler(path, 'a', max_size, backupCount)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    return logger
 
 
 def treat_crf(reader, barcode_index):
@@ -111,10 +137,10 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
             Create a record that has no duplicate (same patient_di, type barcode) in
             RedCap instance.
         """
-
-        new_record = {'redcap_repeat_instrument': instrument,
-                      'patient_id': patient_id,
-                      type_barcode: barcode[0]}
+        if barcode not in redcap_barcodes:
+            new_record = {'redcap_repeat_instrument': instrument,
+                          'patient_id': patient_id,
+                          type_barcode: barcode[0]}
 
         return new_record
 
@@ -129,13 +155,13 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
         new_records = []
         instance_number = 1
 
-        # Ici la variable barcode est un
         for barcode in couple_count[couple]['barcode']:
-            new_records.append({'redcap_repeat_instrument': instrument,
-                               'patient_id': patient_id,
-                               type_barcode: barcode,
-                               'redcap_repeat_instance': instance_number})
-            instance_number += 1
+            if barcode not in redcap_barcodes:
+                new_records.append({'redcap_repeat_instrument': instrument,
+                                   'patient_id': patient_id,
+                                   type_barcode: barcode,
+                                   'redcap_repeat_instance': instance_number})
+                instance_number += 1
 
         create_chain += new_records
 
@@ -176,7 +202,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
 
 def treat_redcap_response(response, barcode_index):
-    """ 
+    """
         :param response: 'response' list from RedCap API
         :param barcode_index: different type of barcode
     """
@@ -232,4 +258,8 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
                                     to_create_barcode, create_chain))
 
+
+print('len(records_to_import)')
+print(len(records_to_import))
+sys.exit('exit')
 project.import_records(records_to_import)
