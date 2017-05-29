@@ -108,7 +108,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
                           type_barcode: barcode[0],
                           'redcap_repeat_instance': instance_number
                           }
-            to_clone_barcode += new_record
+            to_clone_barcode.append(new_record)
 
         return to_clone_barcode
 
@@ -147,7 +147,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
             new_record = {'redcap_repeat_instrument': instrument,
                           'patient_id': patient_id,
                           type_barcode: barcode[0]}
-            to_create_barcode += new_record
+            to_create_barcode.append(new_record)
 
         return to_create_barcode
 
