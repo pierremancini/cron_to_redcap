@@ -15,11 +15,9 @@ from logging.handlers import RotatingFileHandler
 
 
 # TODO: Mettre logger les erreurs si le script est en production
-# Avec rotation de fichiers ? Plusieurs fichiers ?
-
 
 def set_logger(logger_level):
-    """ """
+    """ Set logger in rotating files and stream """
 
     # Création du logger
 
@@ -56,11 +54,7 @@ def get_md5(fastq_path):
 
 
 def info_from_set(set_to_complete):
-    """ Get data from url's set on CNG.
-
-        Return:
-        barcode, project, kit-code, lane, read, flowcell, tag
-    """
+    """ Get and transform data from url's set on CNG."""
 
     # Strucure
     # {barcode:
@@ -130,9 +124,8 @@ def max_instance_number(couple, records_by_couple):
 logger = set_logger(logging.INFO)
 
 
-# On log les uncaught exceptions
 def handle_exception(exc_type, exc_value, exc_traceback):
-    # Si le script 
+
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
@@ -140,6 +133,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
+# On log les uncaught exceptions
 sys.excepthook = handle_exception
 
 
@@ -154,26 +148,17 @@ with open('config_crf.yml', 'r') as crfyml:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
-
 # Strucure:
-# {instrument: [field_name, field_name]}
-# ou
-# {field_label: {}}
+# {field_label: {instrument: field_name}}
 redcap_fields = {}
 
 # Définition dynamique (par rapport au champs créer dans RedCap) des types
 for metadict in project.metadata:
     redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
 
-# Field labels qui nous interessent dans ce script:
-# 'Read', 'Path on cng', 'FastQ filename CNG', 'RNA CNG barcode', 'Set on cng',
-# 'Project', 'Lane'  et 'Barcode'
-# On fait un test avec un backup du fichier .csv des instruments RedCap: Multipli_DataDictionary_2017-05-19.csv
-
-
 response = project.export_records()
 
-# Record pas totalement vide mais n'ayant pas de les champs path de remplis
+# Record n'ayant pas de les champs path de remplis
 # {barcode: [record, record, ...]}
 to_complete = {}
 # Liste des déjà présent sur RedCap
@@ -205,7 +190,6 @@ for record in response:
             sets_completed.append(record[redcap_fields['Set'][instrument]])
 
 
-# Parser la page à l'adresse :
 page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
 soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
@@ -217,9 +201,11 @@ set_to_complete = set(list_set_cng) - set(sets_completed)
 
 
 def multiple_update(record_list, redcap_fields, info_cng):
-    """
-        :param info_cng:
-        :param record:
+    """ Update RedCap records with CNG data.
+
+        :param record_list: Liste des records a update
+        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
+        correspondant.
     """
 
     records = []
@@ -240,7 +226,8 @@ def multiple_update(record_list, redcap_fields, info_cng):
 def update(record, redcap_fields, info_cng):
     """ Update RedCap record with CNG data.
 
-        :parama info_cng: information du tirées du nom de fichier fastq avec le barcode
+        :param record: Record to update
+        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
         correspondant.
     """
 
