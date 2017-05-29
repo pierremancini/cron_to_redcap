@@ -78,8 +78,11 @@ def info_from_set(set_to_complete):
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
             md5 = get_md5(set_url + '/' + fastq)
+            local_filename = '{}_{}_{}_{}.{}_{}_{}.fastq.gz'.format(
+                project, kit_code, barcode, flowcell, tag, lane, read)
             dict_fastq_info = {'Set': set,
                                'FastQ filename CNG': fastq,
+                               'FastQ filename Local': local_filename,
                                'Path on cng': set_url,
                                'md5 value': md5,
                                'Project': project,
