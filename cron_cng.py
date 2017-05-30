@@ -26,7 +26,7 @@ def set_logger(logger_level):
     logger.setLevel(logger_level)
 
     path = '/var/log/cron_to_redcap/cron_cng/cron_cng.log'
-    max_size = 10485760 #10 MB
+    max_size = 10485760  # 10MB
     backupCount = 20
     handler = RotatingFileHandler(path, 'a', max_size, backupCount)
     formatter = logging.Formatter('%(process)d :: %(asctime)s :: %(levelname)s :: %(message)s')
