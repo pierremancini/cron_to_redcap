@@ -223,7 +223,7 @@ def treat_redcap_response(response, barcode_index):
     redcap_barcodes = []
 
     # Structure:
-    # {patient_id: {instruement: {record}}}
+    # {patient_id: {instrument: {record}}}
     redcap_records = {}
 
     for record in response:
@@ -247,10 +247,18 @@ with open('config_crf.yml', 'r') as ymlfile:
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
 
+# Strucure:
+# {field_label: {instrument: field_name}}
+redcap_fields = {}
+
+# Définition dynamique (par rapport au champs créer dans RedCap) des types
+for metadict in project.metadata:
+    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
+
 # Correspondance des champs barcode et redcap_repeated_instrument
 # dans un résultat d'exportation de données via l'api redcap
-type_barcode_to_instrument = config['type_barcode_to_instrument']
-barcode_index = type_barcode_to_instrument.keys()
+type_barcode_to_instrument = {field_name: instrument for instrument, field_name in redcap_fields['Barcode'].items()}
+barcode_index = list(redcap_fields['Barcode'].values())
 
 response = project.export_records()
 
@@ -269,4 +277,7 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
                                     to_create_barcode, create_chain))
 
+
+print(records_to_import)
+sys.exit('exit')
 project.import_records(records_to_import)
