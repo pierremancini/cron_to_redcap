@@ -30,8 +30,8 @@ def set_logger():
     logger.setLevel(logging.WARNING)
 
     path = '/var/log/cron_to_redcap/cron_crf/cron_crf.log'
-    max_size = 100000000
-    backupCount = 10
+    max_size = 10485760 #10 MB
+    backupCount = 20
     handler = RotatingFileHandler(path, 'a', max_size, backupCount)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
