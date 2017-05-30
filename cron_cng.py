@@ -141,9 +141,6 @@ sys.excepthook = handle_exception
 with open('config_cng.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
 
-with open('config_crf.yml', 'r') as crfyml:
-    config_crf = yaml.load(crfyml)
-
 # Partie API redcap
 api_url = 'http://ib101b/html/redcap/api/'
 project = Project(api_url, config['api_key'])
