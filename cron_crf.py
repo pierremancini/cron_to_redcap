@@ -87,6 +87,8 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         # On determine l'instance number
         # et on incrémente
+
+        # Log: Y a-t-il un trou dans la série des intance number ?
         max_instance_number = 0
         for record in redcap_records[(patient_id, instrument)]:
             if int(record['redcap_repeat_instance']) > max_instance_number:
@@ -136,7 +138,6 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         return clone_chain
 
-
     def create_record(to_create_barcode):
         """
             Create a record that has no duplicate (same patient_di, type barcode) in
@@ -150,7 +151,6 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
             to_create_barcode.append(new_record)
 
         return to_create_barcode
-
 
     def create_chain_record(create_chain):
         """
@@ -195,6 +195,7 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
         barcode = couple_count[couple]['barcode']
 
+        # Log: info des différents create et clone de record ?
         if (not doublon) and (not clone):
             to_create_barcode = create_record(to_create_barcode)
 
@@ -210,10 +211,10 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
     return (to_clone_barcode, clone_chain, to_create_barcode, create_chain)
 
 
-def treat_redcap_response(response, barcode_index):
+def treat_redcap_response(response, redcap_fields):
     """
         :param response: 'response' list from RedCap API
-        :param barcode_index: different type of barcode
+        :param redcap_fields: Use to get different type of barcode according to instrument
     """
 
     # Strucuture:
@@ -229,17 +230,32 @@ def treat_redcap_response(response, barcode_index):
     for record in response:
         if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
             patient_id = record['patient_id']
-            # on regarde quel type_barcode est renseigné:
-            for index in record:
-                if index in barcode_index and record[index]:
-                    redcap_couple.append((patient_id, index))
-                    redcap_barcodes.append(record[index])
-                    redcap_records.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
+            instrument = record['redcap_repeat_instrument']
+            index = redcap_fields['Barcode'][instrument]
+            if record[index]:
+                redcap_couple.append((patient_id, index))
+                redcap_barcodes.append(record[index])
+                redcap_records.setdefault((patient_id, instrument), []).append(record)
+            else:
+                logger.warning('Un record associé au patient_id {} et à l\'instrument {} ne possède pas de barcode'.format(patient_id, instrument))
 
     return redcap_couple, redcap_barcodes, redcap_records
 
 
 logger = set_logger()
+
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+# On log les uncaught exceptions
+sys.excepthook = handle_exception
 
 with open('config_crf.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
@@ -266,18 +282,15 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     couple_count = treat_crf(dict_reader, barcode_index)
 
-    # Les couple patient_id, type_barcode des records non vide de redcap
-    pack = treat_redcap_response(response, barcode_index)
-    redcap_couple, redcap_barcodes, redcap_records = pack
+# Les couple patient_id, type_barcode des records non vide de redcap
+pack = treat_redcap_response(response, redcap_fields)
+redcap_couple, redcap_barcodes, redcap_records = pack
 
-    pack = create_clone_chains(couple_count, redcap_couple,
-        redcap_barcodes, redcap_records, type_barcode_to_instrument)
-    to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
+pack = create_clone_chains(couple_count, redcap_couple,
+    redcap_barcodes, redcap_records, type_barcode_to_instrument)
+to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
                                     to_create_barcode, create_chain))
 
-
-print(records_to_import)
-sys.exit('exit')
 project.import_records(records_to_import)

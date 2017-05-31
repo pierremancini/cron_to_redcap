@@ -14,8 +14,6 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 
-# TODO: Mettre logger les erreurs si le script est en production
-
 def set_logger(logger_level):
     """ Set logger in rotating files and stream """
 
@@ -121,80 +119,7 @@ def max_instance_number(couple, records_by_couple):
     return max_instance_number
 
 
-logger = set_logger(logging.INFO)
-
-
-def handle_exception(exc_type, exc_value, exc_traceback):
-
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-
-
-# On log les uncaught exceptions
-sys.excepthook = handle_exception
-
-
-# Lecture du fichier de configuration
-with open('config_cng.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-
-# Partie API redcap
-api_url = 'http://ib101b/html/redcap/api/'
-project = Project(api_url, config['api_key'])
-
-# Strucure:
-# {field_label: {instrument: field_name}}
-redcap_fields = {}
-
-# Définition dynamique (par rapport au champs créer dans RedCap) des types
-for metadict in project.metadata:
-    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
-
-response = project.export_records()
-
-# Record n'ayant pas de les champs path de remplis
-# {barcode: [record, record, ...]}
-to_complete = {}
-# Liste des déjà présent sur RedCap
-sets_completed = []
-
-# Variable nécessaire à la création de clone de le cas où
-# on trouve un record avec le même barcode dans le CNG
-# Strucutre:
-# {(patient_id, type_barcode): [record, record]}
-records_by_couple = {}
-
-for record in response:
-    # Creation de records_by_couple
-    instrument = record['redcap_repeat_instrument']
-    if record['redcap_repeat_instance'] and instrument:
-        patient_id = record['patient_id']
-        if record[redcap_fields['Barcode'][instrument]]:
-            records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
-        empty_path = True
-        if not record[redcap_fields['Path on cng'][instrument]]:
-            if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
-                if record[redcap_fields['Barcode'][instrument]]:
-                    barcode = record[redcap_fields['Barcode'][instrument]]
-                # Un seul record par clé barcode ?
-                if to_complete.setdefault(barcode, record) != record:
-                    print('Warning: dans le redcap il y a plusieurs records sans path partageant le même barcode')
-        else:
-            # On retrouve le set dans le champ set
-            sets_completed.append(record[redcap_fields['Set'][instrument]])
-
-
-page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
-soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
-
-# liste des att. des tag <a> avec pour nom 'set'
-href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
-list_set_cng = [href[:-1] for href in href_set]
-
-set_to_complete = set(list_set_cng) - set(sets_completed)
+logger = set_logger(logging.WARNING)
 
 
 def multiple_update(record_list, redcap_fields, info_cng):
@@ -304,6 +229,78 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
     return records
 
 
+def handle_exception(exc_type, exc_value, exc_traceback):
+
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+# On log les uncaught exceptions
+sys.excepthook = handle_exception
+
+
+# Lecture du fichier de configuration
+with open('config_cng.yml', 'r') as ymlfile:
+    config = yaml.load(ymlfile)
+
+# Partie API redcap
+api_url = 'http://ib101b/html/redcap/api/'
+project = Project(api_url, config['api_key'])
+
+# Strucure:
+# {field_label: {instrument: field_name}}
+redcap_fields = {}
+
+# Définition dynamique (par rapport au champs créer dans RedCap) des types
+for metadict in project.metadata:
+    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
+
+response = project.export_records()
+
+# Record n'ayant pas de les champs path de remplis
+# {barcode: [record, record, ...]}
+to_complete = {}
+# Liste des déjà présent sur RedCap
+sets_completed = []
+
+# Variable nécessaire à la création de clone de le cas où
+# on trouve un record avec le même barcode dans le CNG
+# Strucutre:
+# {(patient_id, type_barcode): [record, record]}
+records_by_couple = {}
+
+for record in response:
+    # Creation de records_by_couple
+    instrument = record['redcap_repeat_instrument']
+    if record['redcap_repeat_instance'] and instrument:
+        patient_id = record['patient_id']
+        if record[redcap_fields['Barcode'][instrument]]:
+            records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']), []).append(record)
+        empty_path = True
+        if not record[redcap_fields['Path on cng'][instrument]]:
+            if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+                if record[redcap_fields['Barcode'][instrument]]:
+                    barcode = record[redcap_fields['Barcode'][instrument]]
+                # Un seul record par clé barcode ?
+                if to_complete.setdefault(barcode, record) != record:
+                    logger.warning('Dans le redcap il y a plusieurs records sans path partageant le même barcode: {}'.format(barcode))
+        else:
+            # On retrouve le set dans le champ set
+            sets_completed.append(record[redcap_fields['Set'][instrument]])
+
+
+page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
+soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
+
+# liste des att. des tag <a> avec pour nom 'set'
+href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
+list_set_cng = [href[:-1] for href in href_set]
+
+set_to_complete = set(list_set_cng) - set(sets_completed)
+
 updated_records = []
 
 # Dictionnaire avec les barcodes en 1ère clé
@@ -313,7 +310,7 @@ for barcode in dicts_fastq_info:
     try:
         to_complete[barcode]
     except KeyError as e:
-        logger.warning('Warning: Le barcode-duplicat n\'est pas présent dans le RedCap: ' + barcode)
+        logger.warning('Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode))
     else:
         if len(dicts_fastq_info[barcode]) > 1:
             # On determine si on chain_clone et si on clone:
