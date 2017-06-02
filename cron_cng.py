@@ -119,9 +119,6 @@ def max_instance_number(couple, records_by_couple):
     return max_instance_number
 
 
-logger = set_logger(logging.WARNING)
-
-
 def multiple_update(record_list, redcap_fields, info_cng):
     """ Update RedCap records with CNG data.
 
@@ -229,7 +226,8 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
     return records
 
 
-def handle_exception(exc_type, exc_value, exc_traceback):
+def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
+    """ Handle uncaught exception."""
 
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -239,8 +237,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 
 # On log les uncaught exceptions
-sys.excepthook = handle_exception
+sys.excepthook = handle_uncaught_exc
 
+logger = set_logger(logging.WARNING)
 
 # Lecture du fichier de configuration
 with open('config_cng.yml', 'r') as ymlfile:
@@ -284,13 +283,10 @@ for record in response:
             if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
                 if record[redcap_fields['Barcode'][instrument]]:
                     barcode = record[redcap_fields['Barcode'][instrument]]
-                # Un seul record par clé barcode ?
-                if to_complete.setdefault(barcode, record) != record:
-                    logger.warning('Dans le redcap il y a plusieurs records sans path partageant le même barcode: {}'.format(barcode))
+                to_complete.setdefault(barcode, []).append(record)
         else:
             # On retrouve le set dans le champ set
             sets_completed.append(record[redcap_fields['Set'][instrument]])
-
 
 page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
 soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
@@ -306,12 +302,44 @@ updated_records = []
 # Dictionnaire avec les barcodes en 1ère clé
 dicts_fastq_info = info_from_set(set_to_complete)
 
+
+# TODO
+"""
+- Lever le warning sur to_complete.setdefault(barcode, record) != record
+car avoir plusieur record pour un même barcode est normal.
+- Il n'est pas normal d'avoir un même barcode sur different instrument. (Mettre un warning ?)
+
+1. Comparer   
+
+    to_complete[barcode]  avec  dicts_fastq_info[barcode] 
+
+    Mettre un warning 'duplicat dans CNG par rapport au RedCap' si 
+    dicts_fastq_info[barcode] > to_complete[barcode] 
+        -> clone et chain clone
+        -> désactiver le section clon et chain clone pour le debug
+
+"""
+
+# for barcode in dicts_fastq_info:
+#     try:
+#         to_complete[barcode]
+#     except KeyError as e:
+#         logger.warning('Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode))
+#     else:
+
+
+
+
 for barcode in dicts_fastq_info:
     try:
         to_complete[barcode]
     except KeyError as e:
         logger.warning('Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode))
     else:
+        print(barcode)
+        print('dicts_fastq_info[{}] : {}'.format(barcode, len(dicts_fastq_info[barcode])))
+        print('to_complete[{}] : {}'.format(barcode, len(to_complete[barcode])))
+
         if len(dicts_fastq_info[barcode]) > 1:
             # On determine si on chain_clone et si on clone:
             if len(dicts_fastq_info[barcode]) > 2:
@@ -333,7 +361,9 @@ for barcode in dicts_fastq_info:
 
                 updated_records += [updated_new_record, updated_model_record]
         else:
+            print('else')
             # Update classique sans clonage
             updated_records.append(update(to_complete[barcode], redcap_fields, dicts_fastq_info[barcode][0]))
 
+sys.exit('exit')
 project.import_records(updated_records)
