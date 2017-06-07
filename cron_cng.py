@@ -180,7 +180,7 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
     patient_id = record_to_clone['patient_id']
 
-    count = 0
+    count = 1
     instance_number = max_instance_number((patient_id, instrument),
         records_by_couple) + 1
     while count != num_of_clone:
@@ -193,12 +193,6 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
     records.append(record_to_clone)
 
-
-    print('num_of_clone')
-    print(num_of_clone)
-    print('len(records)')
-    print(len(records))
-    sys.exit()
     return records
 
 
@@ -279,7 +273,7 @@ for record in response:
 
 # # liste des att. des tag <a> avec pour nom 'set'
 # href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
-# list_set_cng = [href[:-1] for href in href_set]*
+# list_set_cng = [href[:-1] for href in href_set]
 
 # TODO: A supprimer pour la mise en production
 list_set_cng = list(filenames_by_set.keys())
