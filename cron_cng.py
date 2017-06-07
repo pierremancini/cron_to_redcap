@@ -54,7 +54,7 @@ def get_md5(fastq_path):
     # return md5
 
     # TODO: A supprimer pour la mise en production
-    return(md5_by_filename[fastq_path])
+    return(md5_by_path[fastq_path])
 
 
 def info_from_set(set_to_complete):
@@ -71,7 +71,8 @@ def info_from_set(set_to_complete):
         page = requests.get(set_url, auth=(config['login'], config['password']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.gz$', file.string))
+        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.gz$',
+        file.string))
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
@@ -192,6 +193,12 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
     records.append(record_to_clone)
 
+
+    print('num_of_clone')
+    print(num_of_clone)
+    print('len(records)')
+    print(len(records))
+    sys.exit()
     return records
 
 
@@ -208,7 +215,7 @@ def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
 # On log les uncaught exceptions
 sys.excepthook = handle_uncaught_exc
 
-logger = set_logger(logging.DEBUG)
+logger = set_logger(logging.WARNING)
 
 # Lecture du fichier de configuration
 with open('config_cng.yml', 'r') as ymlfile:
@@ -233,6 +240,8 @@ response = project.export_records()
 with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
     filenames_by_set = json.load(jsonfile)
 
+with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
+    md5_by_path = json.load(jsonfile)
 
 # Record n'ayant pas de les champs path de remplis
 # {barcode: [record, record, ...]}
@@ -279,6 +288,7 @@ set_to_complete = set(list_set_cng) - set(sets_completed)
 
 updated_records = []
 
+
 # Dictionnaire avec les barcodes en 1ère clé
 dicts_fastq_info = info_from_set(set_to_complete)
 
@@ -306,7 +316,8 @@ def multiple_update(record_list, redcap_fields, info_cng):
             records.append(record)
             count += 1
     except IndexError as e:
-        print('IndexError handling')
+        print('len(record_list) : {}'.format(len(record_list)))
+        print('len(info_cng) : {}'.format(len(info_cng)))
         raise e
 
     return records
@@ -346,7 +357,6 @@ car avoir plusieur record pour un même barcode est normal.
         -> désactiver le section clon et chain clone pour le debug
 
 """
-
 for barcode in dicts_fastq_info:
     try:
         to_complete[barcode]
@@ -377,14 +387,14 @@ for barcode in dicts_fastq_info:
         elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) > 1:
             print('2em cas bis')
             # Les fastq matchent les record à completer
-            for i in range(1, len(to_complete[barcode])):
+            for i in range(len(to_complete[barcode])):
                 updated_record = update(to_complete[barcode][i], redcap_fields,
                     dicts_fastq_info[barcode][i])
                 updated_records.append(updated_record)
 
             # Les fastq restant n'ont plus de records disponiblent, il faut en cloner
             clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
-            remaining_fastqs = dicts_fastq_info[barcode][len(to_complete[barcode]):]
+            remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
             to_clone = to_complete[barcode][0]
             if len(remaining_fastqs) != clone_nb:
                 logger.error('Le nombre de clones à obtenir ne correspond pas au nombre de '
@@ -392,7 +402,7 @@ for barcode in dicts_fastq_info:
                         len(remaining_fastqs)))
                 sys.exit()
             multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-                clone_nb)
+                clone_nb - 1)
             updated_records += multiple_update(multiple_to_update, redcap_fields,
                 remaining_fastqs)
 

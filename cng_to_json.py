@@ -67,7 +67,7 @@ for set in href_set:
     set_url = config['url_cng'] + set
     filenames = get_filenames(set_url)
     for filename in filenames:
-        filenames_by_set.setdefault(set_url, []).append(filename)
+        filenames_by_set.setdefault(set[:-1], []).append(filename)
         fastq_path = set_url + filename
         md5 = get_md5(fastq_path)
         md5_by_path.setdefault(fastq_path, md5)

@@ -45,6 +45,8 @@ def set_logger():
 
 def treat_crf(reader, barcode_index):
     """
+        Transform data from CRF.
+
         :param reader: Content of .tsv's CRF file
         :param barcode_index: different types of index corresponding to barcode
     """
@@ -67,8 +69,10 @@ def treat_crf(reader, barcode_index):
     return couple_count
 
 
-def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_records, type_barcode_to_instrument):
+def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records, type_barcode_to_instrument):
     """
+        Create and clone records
+
         :param couple_count: couples from CRF file with their occurences
         :param redcap_couple: couples from RedCap instance
         :param redcap_barcodes: barcodes values of RedCap
@@ -213,6 +217,8 @@ def create_clone_chains(couple_count, redcap_couple, redcap_barcodes, redcap_rec
 
 def treat_redcap_response(response, redcap_fields):
     """
+        Transform RedCap API's response.
+
         :param response: 'response' list from RedCap API
         :param redcap_fields: Use to get different type of barcode according to instrument
     """
@@ -286,7 +292,7 @@ with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
 pack = treat_redcap_response(response, redcap_fields)
 redcap_couple, redcap_barcodes, redcap_records = pack
 
-pack = create_clone_chains(couple_count, redcap_couple,
+pack = create_n_clone(couple_count, redcap_couple,
     redcap_barcodes, redcap_records, type_barcode_to_instrument)
 to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
