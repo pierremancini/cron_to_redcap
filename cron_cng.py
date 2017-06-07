@@ -295,8 +295,6 @@ def multiple_update(record_list, redcap_fields, info_cng):
         correspondant.
     """
 
-    print('dans multiple update')
-
     records = []
     count = 0
 
@@ -325,7 +323,6 @@ def update(record, redcap_fields, info_cng):
         correspondant.
     """
 
-    print('dans update')
     info_for_record = {}
     instrument = record['redcap_repeat_instrument']
     for index in info_cng:
@@ -362,7 +359,6 @@ for barcode in dicts_fastq_info:
         # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
         # C'est le cas classique.
         if len(dicts_fastq_info[barcode]) == len(to_complete[barcode]):
-            print('1er cas')
             for i in range(1, len(to_complete[barcode])):
                 updated_record = update(to_complete[barcode][i], redcap_fields,
                     dicts_fastq_info[barcode][i])
@@ -371,7 +367,6 @@ for barcode in dicts_fastq_info:
         # 2em cas: il y un fastq CNG de plus que de record à completer dans RedCap
         # Le script doit cloner les records manquant.
         elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) == 1:
-            print('2em cas')
             for i in range(1, len(to_complete[barcode])):
                 updated_record = update(to_complete[barcode][i], redcap_fields,
                     dicts_fastq_info[barcode][i])
@@ -379,7 +374,6 @@ for barcode in dicts_fastq_info:
 
         # 2em cas bis: il y a plus de un fastq plus que de record à completer dans RedCap
         elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) > 1:
-            print('2em cas bis')
             # Les fastq matchent les record à completer
             for i in range(len(to_complete[barcode])):
                 updated_record = update(to_complete[barcode][i], redcap_fields,
@@ -413,7 +407,4 @@ for barcode in dicts_fastq_info:
                     instrument, barcode)
             logger.warning(warn_msg)
 
-print('updated_records')
-print(updated_records)
-sys.exit()
 project.import_records(updated_records)
