@@ -14,6 +14,7 @@ from redcap import Project
 import logging
 from logging.handlers import RotatingFileHandler
 import json
+import argparse
 
 
 def set_logger(logger_level):
@@ -41,20 +42,22 @@ def set_logger(logger_level):
     return logger
 
 
-def get_md5(fastq_path):
-    """ Get md5 value with path to fastq file name."""
+def get_md5(fastq_path, mock=False):
+    """ Get md5 value with path to fastq file name.
 
-    # TODO: A décommenter pour la mise en production
-    # md5_path = fastq_path + '.md5'
+        :param mock: Tell if the data taken from md5_by_path gobal variable.
+    """
+    if mock:
 
-    # response = requests.get(md5_path, auth=(config['login'], config['password'])).content
+        return md5_by_path[fastq_path]
+    else:
 
-    # md5 = response.decode().split(' ')[0]
+        md5_path = fastq_path + '.md5'
 
-    # return md5
+        response = requests.get(md5_path, auth=(config['login'], config['password'])).content
+        md5 = response.decode().split(' ')[0]
 
-    # TODO: A supprimer pour la mise en production
-    return(md5_by_path[fastq_path])
+        return md5
 
 
 def info_from_set(set_to_complete):
@@ -76,7 +79,9 @@ def info_from_set(set_to_complete):
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
-            md5 = get_md5(set_url + '/' + fastq)
+            # Passe la variable mock pour lire les md5 depuis le dump json et pas le CNG
+            # pour avoir un debug/developpement plus rapide
+            md5 = get_md5(set_url + '/' + fastq, args.mock)
             local_filename = '{}_{}_{}_{}.{}_{}_{}.fastq.gz'.format(
                 project, kit_code, barcode, flowcell, tag, lane, read)
             dict_fastq_info = {'Set': set,
@@ -94,19 +99,6 @@ def info_from_set(set_to_complete):
             dicts_fastq_info.setdefault(barcode, []).append(dict_fastq_info)
 
     return dicts_fastq_info
-
-
-def get_filenames(set_url):
-    """ Return all filenames in the set."""
-
-    # TODO: A décommenter pour la mise en production
-    # page = requests.get(set_url, auth=(config['login'], config['password']))
-    # soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
-
-    # return [filename.string for filename in soup.find_all('a') if re.search(r'fastq\.gz$', filename.string)]
-
-    # TODO: A supprimer pour la mise en production
-    return(filenames_by_set[set_url])
 
 
 def max_instance_number(couple, records_by_couple):
@@ -196,6 +188,52 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
     return records
 
 
+def multiple_update(record_list, redcap_fields, info_cng):
+    """ Update RedCap records with CNG data.
+
+        :param record_list: Liste des records a update
+        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
+        correspondant.
+    """
+
+    records = []
+    count = 0
+
+    try:
+        info_for_record = {}
+        for record in record_list:
+            instrument = record['redcap_repeat_instrument']
+            for index in info_cng[count]:
+                info_for_record[redcap_fields[index][instrument]] = info_cng[count][index]
+            record.update(info_for_record)
+            records.append(record)
+            count += 1
+    except IndexError as e:
+        print('len(record_list) : {}'.format(len(record_list)))
+        print('len(info_cng) : {}'.format(len(info_cng)))
+        raise e
+
+    return records
+
+
+def update(record, redcap_fields, info_cng):
+    """ Update RedCap record with CNG data.
+
+        :param record: Record to update
+        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
+        correspondant.
+    """
+
+    info_for_record = {}
+    instrument = record['redcap_repeat_instrument']
+    for index in info_cng:
+        info_for_record[redcap_fields[index][instrument]] = info_cng[index]
+
+    record.update(info_for_record)
+
+    return record
+
+
 def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
     """ Handle uncaught exception."""
 
@@ -209,7 +247,15 @@ def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
 # On log les uncaught exceptions
 sys.excepthook = handle_uncaught_exc
 
-logger = set_logger(logging.WARNING)
+logger = set_logger(logging.INFO)
+
+opt_parser = argparse.ArgumentParser(description=__doc__)
+# opt_parser.add_argument('-c', '--clone', required=False,
+#     help='Activation du clonage des records manquants dans le RedCap,' 
+#     'un record avec le même barcode doit présent dans le RedCap.')
+opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
+    help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
+args = opt_parser.parse_args()
 
 # Lecture du fichier de configuration
 with open('config_cng.yml', 'r') as ymlfile:
@@ -233,7 +279,6 @@ response = project.export_records()
 # TODO: A supprimer pour la mise en production
 with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
     filenames_by_set = json.load(jsonfile)
-
 with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
     md5_by_path = json.load(jsonfile)
 
@@ -286,68 +331,6 @@ updated_records = []
 # Dictionnaire avec les barcodes en 1ère clé
 dicts_fastq_info = info_from_set(set_to_complete)
 
-
-def multiple_update(record_list, redcap_fields, info_cng):
-    """ Update RedCap records with CNG data.
-
-        :param record_list: Liste des records a update
-        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
-        correspondant.
-    """
-
-    records = []
-    count = 0
-
-    try:
-        info_for_record = {}
-        for record in record_list:
-            instrument = record['redcap_repeat_instrument']
-            for index in info_cng[count]:
-                info_for_record[redcap_fields[index][instrument]] = info_cng[count][index]
-            record.update(info_for_record)
-            records.append(record)
-            count += 1
-    except IndexError as e:
-        print('len(record_list) : {}'.format(len(record_list)))
-        print('len(info_cng) : {}'.format(len(info_cng)))
-        raise e
-
-    return records
-
-
-def update(record, redcap_fields, info_cng):
-    """ Update RedCap record with CNG data.
-
-        :param record: Record to update
-        :param info_cng: information du tirées du nom de fichier fastq avec le barcode
-        correspondant.
-    """
-
-    info_for_record = {}
-    instrument = record['redcap_repeat_instrument']
-    for index in info_cng:
-        info_for_record[redcap_fields[index][instrument]] = info_cng[index]
-
-    record.update(info_for_record)
-
-    return record
-
-# TODO
-"""
-- Lever le warning sur to_complete.setdefault(barcode, record) != record
-car avoir plusieur record pour un même barcode est normal.
-- Il n'est pas normal d'avoir un même barcode sur different instrument. (Mettre un warning ?)
-
-1. Comparer   
-
-    to_complete[barcode]  avec  dicts_fastq_info[barcode] 
-
-    Mettre un warning 'duplicat dans CNG par rapport au RedCap' si 
-    dicts_fastq_info[barcode] > to_complete[barcode] 
-        -> clone et chain clone
-        -> désactiver le section clon et chain clone pour le debug
-
-"""
 for barcode in dicts_fastq_info:
     try:
         to_complete[barcode]
@@ -355,7 +338,6 @@ for barcode in dicts_fastq_info:
         warn_msg = 'Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode)
         logger.warning(warn_msg)
     else:
-        print('dans le 1er else de la boucle')
         # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
         # C'est le cas classique.
         if len(dicts_fastq_info[barcode]) == len(to_complete[barcode]):
@@ -384,27 +366,26 @@ for barcode in dicts_fastq_info:
             clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
             remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
             to_clone = to_complete[barcode][0]
-            if len(remaining_fastqs) != clone_nb:
-                logger.error('Le nombre de clones à obtenir ne correspond pas au nombre de '
-                    'fastq restant, clone_nb: {} et remaining_fastqs: {}'.format(clone_nb,
-                        len(remaining_fastqs)))
-                sys.exit()
-            multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-                clone_nb - 1)
-            updated_records += multiple_update(multiple_to_update, redcap_fields,
-                remaining_fastqs)
 
-        # 3em cas:
-        # TODO: test le cas où il y a une analyse manquant et le cas ou il y en a plusieurs
-        elif len(dicts_fastq_info[barcode]) < len(to_complete[barcode]):
-            print('3em cas')
-            warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
-            for i in range(len(dicts_fastq_info[barcode] + 1), len(to_complete[barcode]) + 1):
-                patient_id = to_complete[barcode][i]['patient_id']
-                instrument = to_complete[barcode][i]['redcap_repeat_instrument']
-                barcode = to_complete[barcode][i][redcap_fields['Barcode'][instrument]]
-                warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
-                    instrument, barcode)
-            logger.warning(warn_msg)
+            # TODO: configurer un mode avec/sans clonage
+            # Partie clonage
+            # multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
+            #     clone_nb - 1)
+            # updated_records += multiple_update(multiple_to_update, redcap_fields,
+            #     remaining_fastqs)
+
+for barcode in to_complete:
+    try:
+        dicts_fastq_info[barcode]
+    except KeyError:
+        print('3em cas')
+        warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
+        for i in range(len(to_complete[barcode])):
+            patient_id = to_complete[barcode][i]['patient_id']
+            instrument = to_complete[barcode][i]['redcap_repeat_instrument']
+            barcode = to_complete[barcode][i][redcap_fields['Barcode'][instrument]]
+            warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
+                instrument, barcode)
+        logger.warning(warn_msg)
 
 project.import_records(updated_records)
