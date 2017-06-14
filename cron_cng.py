@@ -255,6 +255,8 @@ opt_parser = argparse.ArgumentParser(description=__doc__)
 #     'un record avec le même barcode doit présent dans le RedCap.')
 opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
     help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
+opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
+    help='Désactive le clonage des instances de record manquant sur RedCap.')
 args = opt_parser.parse_args()
 
 # Lecture du fichier de configuration
@@ -312,16 +314,12 @@ for record in response:
             # On retrouve le set dans le champ set
             sets_completed.append(record[redcap_fields['Set'][instrument]])
 
-# TODO: A décommenter pour la mise en production
-# page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
-# soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
+page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
+soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-# # liste des att. des tag <a> avec pour nom 'set'
-# href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
-# list_set_cng = [href[:-1] for href in href_set]
-
-# TODO: A supprimer pour la mise en production
-list_set_cng = list(filenames_by_set.keys())
+# liste des att. des tag <a> avec pour nom 'set'
+href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
+list_set_cng = [href[:-1] for href in href_set]
 
 set_to_complete = set(list_set_cng) - set(sets_completed)
 
@@ -367,12 +365,12 @@ for barcode in dicts_fastq_info:
             remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
             to_clone = to_complete[barcode][0]
 
-            # TODO: configurer un mode avec/sans clonage
             # Partie clonage
-            # multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-            #     clone_nb - 1)
-            # updated_records += multiple_update(multiple_to_update, redcap_fields,
-            #     remaining_fastqs)
+            if not opt_parser.d:
+                multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
+                    clone_nb - 1)
+                updated_records += multiple_update(multiple_to_update, redcap_fields,
+                    remaining_fastqs)
 
 for barcode in to_complete:
     try:
