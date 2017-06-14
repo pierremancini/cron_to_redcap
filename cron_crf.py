@@ -233,7 +233,7 @@ def treat_redcap_response(response, redcap_fields):
     # {patient_id: {instrument: {record}}}
     redcap_records = {}
 
-    for record in response:
+    for record in response[1:]:
         if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
             patient_id = record['patient_id']
             instrument = record['redcap_repeat_instrument']
