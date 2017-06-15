@@ -250,9 +250,6 @@ sys.excepthook = handle_uncaught_exc
 logger = set_logger(logging.INFO)
 
 opt_parser = argparse.ArgumentParser(description=__doc__)
-# opt_parser.add_argument('-c', '--clone', required=False,
-#     help='Activation du clonage des records manquants dans le RedCap,' 
-#     'un record avec le même barcode doit présent dans le RedCap.')
 opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
     help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
 opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
@@ -366,7 +363,7 @@ for barcode in dicts_fastq_info:
             to_clone = to_complete[barcode][0]
 
             # Partie clonage
-            if not opt_parser.d:
+            if not args.disable_cloning:
                 multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
                     clone_nb - 1)
                 updated_records += multiple_update(multiple_to_update, redcap_fields,
