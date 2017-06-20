@@ -281,7 +281,7 @@ with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
 with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
     md5_by_path = json.load(jsonfile)
 
-# Record n'ayant pas de les champs path de remplis
+# Record n'ayant pas les champs path remplis
 # {barcode: [record, record, ...]}
 to_complete = {}
 # Liste des déjà présent sur RedCap
@@ -319,6 +319,9 @@ href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', 
 list_set_cng = [href[:-1] for href in href_set]
 
 set_to_complete = set(list_set_cng) - set(sets_completed)
+# On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
+# TODO: A supprimer pour la mise en production
+set_to_complete = ['set6', 'set7']
 
 updated_records = []
 
@@ -327,6 +330,7 @@ updated_records = []
 dicts_fastq_info = info_from_set(set_to_complete)
 
 for barcode in dicts_fastq_info:
+    print(barcode)
     try:
         to_complete[barcode]
     except KeyError as e:
@@ -336,20 +340,21 @@ for barcode in dicts_fastq_info:
         # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
         # C'est le cas classique.
         if len(dicts_fastq_info[barcode]) == len(to_complete[barcode]):
-            for i in range(1, len(to_complete[barcode])):
+            for i in range(0, len(to_complete[barcode])):
                 updated_record = update(to_complete[barcode][i], redcap_fields,
                     dicts_fastq_info[barcode][i])
                 updated_records.append(updated_record)
 
         # 2em cas: il y un fastq CNG de plus que de record à completer dans RedCap
-        # Le script doit cloner les records manquant.
+        # Le script clone le record manquant.
         elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) == 1:
-            for i in range(1, len(to_complete[barcode])):
-                updated_record = update(to_complete[barcode][i], redcap_fields,
-                    dicts_fastq_info[barcode][i])
-                updated_records.append(updated_record)
+            if not args.disable_cloning:
+                for i in range(0, len(to_complete[barcode])):
+                    updated_record = update(to_complete[barcode][i], redcap_fields,
+                        dicts_fastq_info[barcode][i])
+                    updated_records.append(updated_record)
 
-        # 2em cas bis: il y a plus de un fastq plus que de record à completer dans RedCap
+        # 2em cas bis: il y a plus de un fastq de plus que de record à completer dans RedCap
         elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) > 1:
             # Les fastq matchent les record à completer
             for i in range(len(to_complete[barcode])):
@@ -362,18 +367,17 @@ for barcode in dicts_fastq_info:
             remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
             to_clone = to_complete[barcode][0]
 
-            # Partie clonage
-            if not args.disable_cloning:
-                multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-                    clone_nb - 1)
-                updated_records += multiple_update(multiple_to_update, redcap_fields,
-                    remaining_fastqs)
+            # Partie clonage, à activer pour la production
+            # if not args.disable_cloning:
+            #     multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
+            #         clone_nb - 1)
+            #     updated_records += multiple_update(multiple_to_update, redcap_fields,
+            #         remaining_fastqs)
 
 for barcode in to_complete:
     try:
         dicts_fastq_info[barcode]
     except KeyError:
-        print('3em cas')
         warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
         for i in range(len(to_complete[barcode])):
             patient_id = to_complete[barcode][i]['patient_id']
@@ -383,4 +387,7 @@ for barcode in to_complete:
                 instrument, barcode)
         logger.warning(warn_msg)
 
+
+# print(updated_records)
+# sys.exit('import')
 project.import_records(updated_records)
