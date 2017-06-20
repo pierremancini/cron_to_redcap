@@ -21,6 +21,7 @@ def args():
     opt_parser.add_argument('-f', '--format', required=False, help='csv, xml or json')
     return opt_parser.parse_args()
 
+
 args = args()
 
 with open('redcap.yml', 'r') as ymlfile:
@@ -95,7 +96,10 @@ def make_samples_plan(record_data, redcap_fields):
             last_column = '{}-{}-{}'.format(patient_id, set, analysis_type)
             row = [path_on_cng, fastQ_file_cng, fastQ_file_local, last_column]
             rows_tsv.append(row)
-
+            fastQ_file_cng_md5 = fastQ_file_cng + '.md5'
+            fastQ_file_local_md5 = fastQ_file_local + '.md5'
+            md5_row = [path_on_cng, fastQ_file_cng_md5, fastQ_file_local_md5, last_column]
+            rows_tsv.append(md5_row)
     return rows_tsv
 
 
@@ -107,7 +111,6 @@ if args.path:
 else:
     # Default path
     samples_plan_path = os.path.join('data', 'samples_plan_get.tsv')
-
 
 
 with open(samples_plan_path, 'w') as csvfile:
