@@ -9,7 +9,6 @@ import argparse
 import yaml
 import csv
 from redcap import Project
-import requests
 
 
 # Script's  dependencies
@@ -32,8 +31,8 @@ opt_parser.add_argument('--form', required=False, choices=instrument_list,
     help='Form/Instrument name')
 opt_parser.add_argument('-f', '--field', required=False, help='RedCap field.')
 opt_parser.add_argument('-v', '--value', required=False, help='New value.')
-opt_parser.add_argument('-fastq', '--full_fastq', required=False,
-    help='Content of FastQ filename CNG.')
+opt_parser.add_argument('-fastq', '--full-fastq', required=False,
+    help='Content of FastQ filename CNG. To use when updating a sequencing related value.')
 args = opt_parser.parse_args()
 
 # Exploitation des métadata
@@ -47,15 +46,20 @@ for metadata_dict in project.metadata:
     redcap_fields.setdefault(metadata_dict['field_label'], {}).setdefault(metadata_dict['form_name'],
         metadata_dict['field_name'])
 
-# # On vérifie la correspondance nom formulaire-nom de champ si on update un champ de type sequencing
-# if args.form == 'germline_dna_sequencing':
+# On vérifie la correspondance nom formulaire-nom de champ si on update un champ de type sequencing
+if args.form == 'germline_dna_sequencing':
+    if 'constit' in args.field:
+        print('ok constit')
+    else:
+        print('warning constit')
 
-# if args.form == 'tumor_dna_sequencing'
-
-
+if args.form == 'rna_sequencing':
+    if 'rna' in args.field:
+        print('ok rna')
+    else:
+        print('warning rna')
 
 if args.display_fields:
-    # {instrument: [fieldname]}
     print(to_display)
 else:
     target_patient_id = args.patient_id
@@ -70,8 +74,8 @@ else:
 
     # Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
     # n'avoir que du '1'/'0'
-    bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
     if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
+        bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
         try:
             int(new_value)
         except ValueError:
@@ -96,7 +100,7 @@ else:
             if record[redcap_fields['FastQ filename CNG'][instrument]] == args.full_fastq:
                 to_import = record
 
-    # Modification d'un champ dans un intrument non-répétable
+    # Modification d'un champ dans un instrument non-répétable
     else:
         data_export = project.export_records(records=ids, fields=fields)
         to_import = data_export[0]
