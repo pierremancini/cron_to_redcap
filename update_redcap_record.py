@@ -4,7 +4,16 @@
 import sys
 import argparse
 import yaml
-from redcap import Project
+import redcap
+
+
+class FieldNameError(redcap.RCAPIError):
+    """ Error related to redcap field name."""
+    def __init__(self, field_name, form_name):
+        self.msg = 'The field name {}, does not match with the form {}'.format(field_name, form_name)
+
+    def __str__(self):
+        return self.msg
 
 
 # Script's  dependencies
@@ -13,7 +22,7 @@ with open('redcap.yml', 'r') as ymlfile:
 api_url = 'http://ib101b/html/redcap/api/'
 
 
-project = Project(api_url, config['api_key'])
+project = redcap.Project(api_url, config['api_key'])
 
 instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
@@ -43,25 +52,16 @@ for metadata_dict in project.metadata:
         metadata_dict['field_name'])
 
 # On vérifie la correspondance nom_formulaire-nom_ed_champ si on update un champ de type sequencing
-if 'constit' in args.field:
+try:
+    if 'constit' in args.field and args.seq_form != 'germline_dna_sequencing':
+        raise FieldNameError(args.field, args.seq_form)
+    elif 'rna' in args.field and args.seq_form != 'rna_sequencing':
+        raise FieldNameError(args.field, args.seq_form)
+    elif args.seq_form != 'germline_dna_sequencing':
+        raise FieldNameError(args.field, args.seq_form)
+except FieldNameError as e:
+    raise e
 
-elif 'rna' in args.field:
-
-else:
-
-
-
-if args.seq_form == 'germline_dna_sequencing':
-   
-        print('ok constit')
-    else:
-        print('warning constit')
-
-if args.seq_form == 'rna_sequencing':
-    if 'rna' in args.field:
-        print('ok rna')
-    else:
-        print('warning rna')
 
 if args.display_fields:
     print(to_display)
