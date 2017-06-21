@@ -23,12 +23,12 @@ opt_parser.add_argument('-d', '--display-fields', required=False, action='store_
     help='Display redcap fields that can be updated.')
 # Arguments pour utilisation classique
 opt_parser.add_argument('-id', '--patient-id', required=False, help='Patient_id.')
-opt_parser.add_argument('--form', required=False, choices=instrument_list,
-    help='Form/Instrument name')
 opt_parser.add_argument('-f', '--field', required=False, help='RedCap field.')
 opt_parser.add_argument('-v', '--value', required=False, help='New value.')
 opt_parser.add_argument('-fastq', '--full-fastq', required=False,
-    help='Content of FastQ filename CNG. To use when updating a sequencing related value.')
+    help='Content of FastQ filename Local. To use when updating a sequencing related field.')
+opt_parser.add_argument('--seq-form', required=False, choices=instrument_list,
+    help='Form name related to sequencing')
 args = opt_parser.parse_args()
 
 # Exploitation des métadata
@@ -42,14 +42,22 @@ for metadata_dict in project.metadata:
     redcap_fields.setdefault(metadata_dict['field_label'], {}).setdefault(metadata_dict['form_name'],
         metadata_dict['field_name'])
 
-# On vérifie la correspondance nom formulaire-nom de champ si on update un champ de type sequencing
-if args.form == 'germline_dna_sequencing':
-    if 'constit' in args.field:
+# On vérifie la correspondance nom_formulaire-nom_ed_champ si on update un champ de type sequencing
+if 'constit' in args.field:
+
+elif 'rna' in args.field:
+
+else:
+
+
+
+if args.seq_form == 'germline_dna_sequencing':
+   
         print('ok constit')
     else:
         print('warning constit')
 
-if args.form == 'rna_sequencing':
+if args.seq_form == 'rna_sequencing':
     if 'rna' in args.field:
         print('ok rna')
     else:
@@ -91,9 +99,9 @@ else:
     if args.full_fastq:
         data_export = project.export_records(records=ids)
 
-        instrument = args.form
+        instrument = args.seq_form
         for record in data_export:
-            if record[redcap_fields['FastQ filename CNG'][instrument]] == args.full_fastq:
+            if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
                 to_import = record
 
     # Modification d'un champ dans un instrument non-répétable
