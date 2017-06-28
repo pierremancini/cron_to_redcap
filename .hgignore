@@ -3,4 +3,4 @@ syntax: glob
 data/**
 *.pyc
 *~
-*.yml
+secret_config.yml

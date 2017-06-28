@@ -54,7 +54,7 @@ def get_md5(fastq_path, mock=False):
 
         md5_path = fastq_path + '.md5'
 
-        response = requests.get(md5_path, auth=(config['login'], config['password'])).content
+        response = requests.get(md5_path, auth=(config['login_cng'], config['password_cng'])).content
         md5 = response.decode().split(' ')[0]
 
         return md5
@@ -71,7 +71,7 @@ def info_from_set(set_to_complete):
 
     for set in set_to_complete:
         set_url = config['url_cng'] + set
-        page = requests.get(set_url, auth=(config['login'], config['password']))
+        page = requests.get(set_url, auth=(config['login_cng'], config['password_cng']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
         fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.gz$',
@@ -257,8 +257,11 @@ opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store
 args = opt_parser.parse_args()
 
 # Lecture du fichier de configuration
-with open('config_cng.yml', 'r') as ymlfile:
+with open('config.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
+with open('secret_config.yml', 'r') as ymlfile:
+    secret_config = yaml.load(ymlfile)
+config.update(secret_config)
 
 # Partie API redcap
 api_url = 'http://ib101b/html/redcap/api/'
@@ -311,7 +314,7 @@ for record in response:
             # On retrouve le set dans le champ set
             sets_completed.append(record[redcap_fields['Set'][instrument]])
 
-page = requests.get(config['url_cng'], auth=(config['login'], config['password']))
+page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']))
 soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
 # liste des att. des tag <a> avec pour nom 'set'
@@ -387,7 +390,4 @@ for barcode in to_complete:
                 instrument, barcode)
         logger.warning(warn_msg)
 
-
-# print(updated_records)
-# sys.exit('import')
 project.import_records(updated_records)

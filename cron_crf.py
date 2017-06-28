@@ -263,7 +263,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # On log les uncaught exceptions
 sys.excepthook = handle_exception
 
-with open('config_crf.yml', 'r') as ymlfile:
+with open('secret_config.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
 
 api_url = 'http://ib101b/html/redcap/api/'
