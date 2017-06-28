@@ -14,7 +14,6 @@ from redcap import Project
 import itertools
 import logging
 import logging.config
-import inspect
 
 # TODO: Mettre logger les erreurs si le script est en production
 # Avec rotation de fichiers ? Plusieurs fichiers ?
@@ -22,26 +21,14 @@ import inspect
 
 def set_logger(config_dict):
 
+    # Génération du path des logs dynamiquement en fonction du nom du script
+    project_folder = os.path.relpath(__file__, '..').split('/')[0]
+    name = os.path.splitext(__file__)[0]
+    path = '/var/log/{}/{}/{}'.format(project_folder, name, name + '.log')
+    config['handlers']['file_handler']['filename'] = path
+
     logging.config.dictConfig(config_dict)
-
-    # formatter = logging.Formatter('%(process)d :: %(asctime)s :: %(levelname)s :: %(message)s')
-
-    # Création du logger
-
-    # Root logger
     logger = logging.getLogger()
-
-    # path = '/var/log/cron_to_redcap/cron_crf/cron_crf.log'
-    # max_size = 10485760  # 10MB
-    # backupCount = 20
-    # handler = RotatingFileHandler(path, 'a', max_size, backupCount)
-    # handler.setFormatter(formatter)
-    # logger.addHandler(handler)
-
-    # stream_handler = logging.StreamHandler()
-    # stream_handler.setFormatter(formatter)
-    # logger.addHandler(stream_handler)
-
 
     return logger
 
@@ -253,11 +240,8 @@ def treat_redcap_response(response, redcap_fields):
 
 with open('logging.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
-# Génération du path des logs dynamiquement en fonction du nom du script
-path = '/var/log/cron_to_redcap/'
-config['handlers']['file_handler']['filename'] = path
-logger = set_logger(config)
 
+logger = set_logger(config)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
 
