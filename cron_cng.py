@@ -12,32 +12,35 @@ import yaml
 import re
 from redcap import Project
 import logging
-from logging.handlers import RotatingFileHandler
+import logging.config
 import json
 import argparse
 
 
-def set_logger(logger_level):
-    """ Set logger in rotating files and stream """
+def set_logger(config_dict):
+    """ Gère le système de log.
 
-    # Création du logger
+        1. Check et création des dossier de log.
+        2. Instanciation de l'objet logger pour le reste du script.
+    """
 
-    # Root logger
+    # Génération du path des logs dynamiquement en fonction du nom du script
+    project_folder = os.path.relpath(__file__, '..').split('/')[0]
+    name = os.path.splitext(__file__)[0]
+
+    path = '/var/log/{}/{}/{}'.format(project_folder, name, name + '.log')
+    config['handlers']['file_handler']['filename'] = path
+
+    try:
+        logging.config.dictConfig(config_dict)
+    except ValueError:
+
+        if not os.path.exists('/var/log/{}/{}'.format(project_folder, name)):
+            os.makedirs('/var/log/{}/{}'.format(project_folder, name))
+        # Il faut créé les dossiers de log
+        logging.config.dictConfig(config_dict)
+
     logger = logging.getLogger()
-    logger.setLevel(logger_level)
-
-    path = '/var/log/cron_to_redcap/cron_cng/cron_cng.log'
-    max_size = 10485760  # 10MB
-    backupCount = 20
-    handler = RotatingFileHandler(path, 'a', max_size, backupCount)
-    formatter = logging.Formatter('%(process)d :: %(asctime)s :: %(levelname)s :: %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    formatter = logging.Formatter('%(levelname)s :: %(message)s')
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
 
     return logger
 
@@ -247,7 +250,10 @@ def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
 # On log les uncaught exceptions
 sys.excepthook = handle_uncaught_exc
 
-logger = set_logger(logging.INFO)
+
+with open('logging.yml', 'r') as ymlfile:
+    config = yaml.load(ymlfile)
+logger = set_logger(config)
 
 opt_parser = argparse.ArgumentParser(description=__doc__)
 opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
