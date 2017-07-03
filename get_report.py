@@ -84,9 +84,9 @@ def make_samples_plan(record_data, redcap_fields):
             if instrument == 'germline_dna_sequencing':
                 analysis_type = 'CD'
             elif instrument == 'tumor_dna_sequencing':
-                analysis_type = 'TD'
+                analysis_type = 'MD'
             elif instrument == 'rna_sequencing':
-                analysis_type = 'TR'
+                analysis_type = 'MR'
 
             path_on_cng = record[redcap_fields['Path on cng'][instrument]]
             fastQ_file_cng = record[redcap_fields['FastQ filename CNG'][instrument]]
