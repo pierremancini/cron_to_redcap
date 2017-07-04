@@ -14,6 +14,8 @@ from redcap import Project
 import itertools
 import logging
 import logging.config
+import ftplib
+import socket
 
 # TODO: Mettre logger les erreurs si le script est en production
 # Avec rotation de fichiers ? Plusieurs fichiers ?
@@ -269,10 +271,14 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # On log les uncaught exceptions
 sys.excepthook = handle_exception
 
-with open('secret_config.yml', 'r') as ymlfile:
+with open('config.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
+with open('secret_config.yml', 'r') as ymlfile:
+    secret_config = yaml.load(ymlfile)
+config.update(secret_config)
 
-api_url = 'http://ib101b/html/redcap/api/'
+
+api_url = config['redcap_api_url']
 project = Project(api_url, config['api_key'])
 
 # Strucure:
@@ -290,7 +296,26 @@ barcode_index = list(redcap_fields['Barcode'].values())
 
 response = project.export_records()
 
-with open(os.path.join('data', 'CRF_mock.tsv'), 'r') as csvfile:
+path_crf_file = config['path_crf_file']
+head_crf, tail_crf = os.path.split(path_crf_file)
+
+
+# get crf file with ftps
+ftps = ftplib.FTP_TLS(config['crf_host'])
+ftps.login(config['login_crf'], config['password_crf'])
+# Encrypt all data, not only login/password
+ftps.prot_p()
+# Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+# cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+ftps.af = socket.AF_INET6
+ftps.cwd('MULTIPLI/MULTIPLI/')
+with open(os.path.join('data', tail_crf), 'w') as file:
+    ftps.retrlines('RETR {}'.format(tail_crf), file.write)
+ftps.quit()
+
+sys.exit()
+
+with open(os.path.join('data', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     couple_count = treat_crf(dict_reader, barcode_index)
 
