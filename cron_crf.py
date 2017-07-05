@@ -312,12 +312,12 @@ with ftplib.FTP_TLS(config['crf_host']) as ftps:
     ftps.cwd(head_crf)
 
     try:
-        with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
-            ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
-    except FileNotFoundError:
         os.mkdir(os.path.join('data', 'crf_extraction'))
-        with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
-            ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+    except FileExistsError:
+        pass
+
+    with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
 # /!\ 1)  le fichier est réécrit sur une seule ligne -> respecter les sauts de ligne
 # 2) Addapter les headers mock_crf et crf réel
@@ -325,6 +325,8 @@ with ftplib.FTP_TLS(config['crf_host']) as ftps:
 with open(os.path.join('data', 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     couple_count = treat_crf(dict_reader, barcode_index)
+
+sys.exit()
 
 # Les couple patient_id, type_barcode des records non vide de redcap
 pack = treat_redcap_response(response, redcap_fields)
