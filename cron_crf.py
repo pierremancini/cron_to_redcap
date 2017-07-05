@@ -49,12 +49,12 @@ def set_logger(config_dict):
     return logger
 
 
-def treat_crf(reader, barcode_index):
+def treat_crf(reader, corresp):
     """
         Transform data from CRF.
 
         :param reader: Content of .tsv's CRF file
-        :param barcode_index: different types of index corresponding to barcode
+        :param barcode_index: Correspondance colonne fichier/champ redcap
     """
 
     # Couple = patient_id & type_barcode,
@@ -65,12 +65,12 @@ def treat_crf(reader, barcode_index):
     couple_count = {}
 
     for line in reader:
-        patient_id = line['patient_id']
+        patient_id = line['USUBJID']
         for index in line:
-            if index in barcode_index and line[index]:
-                couple_count.setdefault((patient_id, index), {'count': 0, 'barcode': []})
-                couple_count[(patient_id, index)]['count'] += 1
-                couple_count[(patient_id, index)]['barcode'].append(line[index])
+            if index in corresp and line[index]:
+                couple_count.setdefault((patient_id, corresp[index]), {'count': 0, 'barcode': []})
+                couple_count[(patient_id, corresp[index])]['count'] += 1
+                couple_count[(patient_id, corresp[index])]['barcode'].append(line[index])
 
     return couple_count
 
@@ -292,7 +292,6 @@ for metadict in project.metadata:
 # Correspondance des champs barcode et redcap_repeated_instrument
 # dans un résultat d'exportation de données via l'api redcap
 type_barcode_to_instrument = {field_name: instrument for instrument, field_name in redcap_fields['Barcode'].items()}
-barcode_index = list(redcap_fields['Barcode'].values())
 
 response = project.export_records()
 
@@ -301,32 +300,27 @@ head_crf, tail_crf = os.path.split(path_crf_file)
 
 
 # get crf file with ftps
-with ftplib.FTP_TLS(config['crf_host']) as ftps:
-    ftps = ftplib.FTP_TLS(config['crf_host'])
-    ftps.login(config['login_crf'], config['password_crf'])
-    # Encrypt all data, not only login/password
-    ftps.prot_p()
-    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-    ftps.af = socket.AF_INET6
-    ftps.cwd(head_crf)
+# with ftplib.FTP_TLS(config['crf_host']) as ftps:
+#     ftps = ftplib.FTP_TLS(config['crf_host'])
+#     ftps.login(config['login_crf'], config['password_crf'])
+#     # Encrypt all data, not only login/password
+#     ftps.prot_p()
+#     # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+#     # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+#     ftps.af = socket.AF_INET6
+#     ftps.cwd(head_crf)
 
-    try:
-        os.mkdir(os.path.join('data', 'crf_extraction'))
-    except FileExistsError:
-        pass
+#     try:
+#         os.mkdir(os.path.join('data', 'crf_extraction'))
+#     except FileExistsError:
+#         pass
 
-    with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
-        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
-
-# /!\ 1)  le fichier est réécrit sur une seule ligne -> respecter les sauts de ligne
-# 2) Addapter les headers mock_crf et crf réel
+#     with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+#         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
 with open(os.path.join('data', 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
-    couple_count = treat_crf(dict_reader, barcode_index)
-
-sys.exit()
+    couple_count = treat_crf(dict_reader, config['corresp'])
 
 # Les couple patient_id, type_barcode des records non vide de redcap
 pack = treat_redcap_response(response, redcap_fields)
