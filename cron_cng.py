@@ -270,7 +270,7 @@ with open('secret_config.yml', 'r') as ymlfile:
 config.update(secret_config)
 
 # Partie API redcap
-api_url = 'http://ib101b/html/redcap/api/'
+api_url = config['redcap_api_url']
 project = Project(api_url, config['api_key'])
 
 # Strucure:

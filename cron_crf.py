@@ -301,21 +301,28 @@ head_crf, tail_crf = os.path.split(path_crf_file)
 
 
 # get crf file with ftps
-ftps = ftplib.FTP_TLS(config['crf_host'])
-ftps.login(config['login_crf'], config['password_crf'])
-# Encrypt all data, not only login/password
-ftps.prot_p()
-# Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-# cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-ftps.af = socket.AF_INET6
-ftps.cwd('MULTIPLI/MULTIPLI/')
-with open(os.path.join('data', tail_crf), 'w') as file:
-    ftps.retrlines('RETR {}'.format(tail_crf), file.write)
-ftps.quit()
+with ftplib.FTP_TLS(config['crf_host']) as ftps:
+    ftps = ftplib.FTP_TLS(config['crf_host'])
+    ftps.login(config['login_crf'], config['password_crf'])
+    # Encrypt all data, not only login/password
+    ftps.prot_p()
+    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+    ftps.af = socket.AF_INET6
+    ftps.cwd(head_crf)
 
-sys.exit()
+    try:
+        with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+            ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+    except FileNotFoundError:
+        os.mkdir(os.path.join('data', 'crf_extraction'))
+        with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+            ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
-with open(os.path.join('data', tail_crf), 'r') as csvfile:
+# /!\ 1)  le fichier est réécrit sur une seule ligne -> respecter les sauts de ligne
+# 2) Addapter les headers mock_crf et crf réel
+
+with open(os.path.join('data', 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     couple_count = treat_crf(dict_reader, barcode_index)
 
