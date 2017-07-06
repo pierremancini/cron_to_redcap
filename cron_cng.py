@@ -320,26 +320,25 @@ for record in response:
             # On retrouve le set dans le champ set
             sets_completed.append(record[redcap_fields['Set'][instrument]])
 
+
 page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']))
 soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
 # liste des att. des tag <a> avec pour nom 'set'
-href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d/$', a.string)]
+href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
 list_set_cng = [href[:-1] for href in href_set]
 
 set_to_complete = set(list_set_cng) - set(sets_completed)
 # On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
 # TODO: A supprimer pour la mise en production
-set_to_complete = ['set6', 'set7']
+# set_to_complete = ['set6', 'set7']
 
 updated_records = []
-
 
 # Dictionnaire avec les barcodes en 1ère clé
 dicts_fastq_info = info_from_set(set_to_complete)
 
 for barcode in dicts_fastq_info:
-    print(barcode)
     try:
         to_complete[barcode]
     except KeyError as e:
@@ -377,11 +376,11 @@ for barcode in dicts_fastq_info:
             to_clone = to_complete[barcode][0]
 
             # Partie clonage, à activer pour la production
-            # if not args.disable_cloning:
-            #     multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-            #         clone_nb - 1)
-            #     updated_records += multiple_update(multiple_to_update, redcap_fields,
-            #         remaining_fastqs)
+            if not args.disable_cloning:
+                multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
+                    clone_nb - 1)
+                updated_records += multiple_update(multiple_to_update, redcap_fields,
+                    remaining_fastqs)
 
 for barcode in to_complete:
     try:
