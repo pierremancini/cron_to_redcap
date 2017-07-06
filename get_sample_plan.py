@@ -24,7 +24,7 @@ def args():
 
 args = args()
 
-with open('redcap.yml', 'r') as ymlfile:
+with open('secret_config.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
 
 report_id = args.id
@@ -93,12 +93,12 @@ def make_samples_plan(record_data, redcap_fields):
             fastQ_file_local = record[redcap_fields['FastQ filename Local'][instrument]]
             set = record[redcap_fields['Set'][instrument]]
             patient_id = record['patient_id']
-            last_column = '{}-{}-{}'.format(patient_id, set, analysis_type)
-            row = [path_on_cng, fastQ_file_cng, fastQ_file_local, last_column]
+            case = '{}-{}-{}'.format(patient_id, set, analysis_type)
+            row = [case, path_on_cng, fastQ_file_cng, fastQ_file_local]
             rows_tsv.append(row)
             fastQ_file_cng_md5 = fastQ_file_cng + '.md5'
             fastQ_file_local_md5 = fastQ_file_local + '.md5'
-            md5_row = [path_on_cng, fastQ_file_cng_md5, fastQ_file_local_md5, last_column]
+            md5_row = [case, path_on_cng, fastQ_file_cng_md5, fastQ_file_local_md5]
             rows_tsv.append(md5_row)
     return rows_tsv
 
@@ -114,7 +114,7 @@ else:
 
 
 with open(samples_plan_path, 'w') as csvfile:
-    header = ['URL', 'REMOTEFILE', 'LOCALFILE', 'CASE']
+    header = ['CASE', 'URL', 'REMOTEFILE', 'LOCALFILE']
     writer = csv.writer(csvfile, delimiter='\t')
     writer.writerow(header)
     for row in rows_tsv:
