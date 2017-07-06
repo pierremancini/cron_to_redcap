@@ -77,7 +77,7 @@ def info_from_set(set_to_complete):
         page = requests.get(set_url, auth=(config['login_cng'], config['password_cng']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.gz$',
+        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.(gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2)$',
         file.string))
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
