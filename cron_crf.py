@@ -300,23 +300,23 @@ head_crf, tail_crf = os.path.split(path_crf_file)
 
 
 # get crf file with ftps
-# with ftplib.FTP_TLS(config['crf_host']) as ftps:
-#     ftps = ftplib.FTP_TLS(config['crf_host'])
-#     ftps.login(config['login_crf'], config['password_crf'])
-#     # Encrypt all data, not only login/password
-#     ftps.prot_p()
-#     # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-#     # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-#     ftps.af = socket.AF_INET6
-#     ftps.cwd(head_crf)
+with ftplib.FTP_TLS(config['crf_host']) as ftps:
+    ftps = ftplib.FTP_TLS(config['crf_host'])
+    ftps.login(config['login_crf'], config['password_crf'])
+    # Encrypt all data, not only login/password
+    ftps.prot_p()
+    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+    ftps.af = socket.AF_INET6
+    ftps.cwd(head_crf)
 
-#     try:
-#         os.mkdir(os.path.join('data', 'crf_extraction'))
-#     except FileExistsError:
-#         pass
+    try:
+        os.mkdir(os.path.join('data', 'crf_extraction'))
+    except FileExistsError:
+        pass
 
-#     with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
-#         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+    with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
 with open(os.path.join('data', 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
