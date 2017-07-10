@@ -1,6 +1,18 @@
-# Addresse web du CNG où lire le HTML 
-url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
+# ---- RedCap ----
 redcap_api_url: 'http://ib101b/html/redcap/api/'
 
+
+# ---- CNG ----
+# Addresse web du CNG où lire le HTML 
+url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
+
+
+# ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 path_crf_file: 'MULTIPLI/MULTIPLI/MULTIPLI_Sequencing_20170630.tsv'
+
+# Correspondance colonne fichier/champ redcap
+corresp:
+  SQBCRNA: rna_cng_barcode
+  SQBCTUM: tumor_dna_barcode
+  SQBCGER: germline_dna_cng_barcode
