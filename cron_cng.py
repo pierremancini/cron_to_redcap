@@ -310,7 +310,6 @@ for record in response:
         if record[redcap_fields['Barcode'][instrument]]:
             records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']),
                 []).append(record)
-        empty_path = True
         if not record[redcap_fields['Path on cng'][instrument]]:
             if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
                 if record[redcap_fields['Barcode'][instrument]]:
