@@ -4,4 +4,4 @@ data/**
 *.pyc
 *~
 secret_config.yml
-*.sublime-project
+*.sublime-*
