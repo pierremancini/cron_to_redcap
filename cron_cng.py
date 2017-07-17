@@ -77,10 +77,14 @@ def info_from_set(set_to_complete):
         page = requests.get(set_url, auth=(config['login_cng'], config['password_cng']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.(gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2)$',
+        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
         file.string))
         for fastq in fastq_gen:
+            print('fastq:')
+            print(fastq)
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
+            print('end_of_file:')
+            print(end_of_file)
             flowcell, tag = end_of_file.split('.')[:-2]
             # Passe la variable mock pour lire les md5 depuis le dump json et pas le CNG
             # pour avoir un debug/developpement plus rapide
@@ -392,5 +396,6 @@ for barcode in to_complete:
                 instrument, barcode)
         logger.warning(warn_msg)
 
-
+print(updated_records)
+sys.exit()
 project.import_records(updated_records)
