@@ -9,7 +9,7 @@ url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
 
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
-path_crf_file: 'MULTIPLI/MULTIPLI/MULTIPLI_Sequencing_20170630.tsv'
+path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing.tsv'
 
 # Correspondance colonne fichier/champ redcap
 corresp:
