@@ -80,11 +80,7 @@ def info_from_set(set_to_complete):
         fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
         file.string))
         for fastq in fastq_gen:
-            print('fastq:')
-            print(fastq)
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
-            print('end_of_file:')
-            print(end_of_file)
             flowcell, tag = end_of_file.split('.')[:-2]
             # Passe la variable mock pour lire les md5 depuis le dump json et pas le CNG
             # pour avoir un debug/developpement plus rapide
@@ -322,7 +318,8 @@ for record in response:
             sets_completed.append(record[redcap_fields['Set'][instrument]])
 
 
-page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']))
+page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']),
+    timeout=(3.05, 27))
 soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
 # liste des att. des tag <a> avec pour nom 'set'
@@ -330,6 +327,9 @@ href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$',
 list_set_cng = [href[:-1] for href in href_set]
 
 set_to_complete = set(list_set_cng) - set(sets_completed)
+print('set_to_complete')
+print(set_to_complete)
+sys.exit()
 # On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
 # TODO: A supprimer pour la mise en production
 # set_to_complete = ['set6', 'set7']
@@ -396,6 +396,5 @@ for barcode in to_complete:
                 instrument, barcode)
         logger.warning(warn_msg)
 
-print(updated_records)
-sys.exit()
+
 project.import_records(updated_records)
