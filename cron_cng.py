@@ -212,8 +212,6 @@ def multiple_update(record_list, redcap_fields, info_cng):
             records.append(record)
             count += 1
     except IndexError as e:
-        print('len(record_list) : {}'.format(len(record_list)))
-        print('len(info_cng) : {}'.format(len(info_cng)))
         raise e
 
     return records
@@ -374,7 +372,7 @@ for barcode in dicts_fastq_info:
             remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
             to_clone = to_complete[barcode][0]
 
-            # Partie clonage, à activer pour la production
+            # Partie clonage
             if not args.disable_cloning:
                 multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
                     clone_nb - 1)
@@ -393,5 +391,6 @@ for barcode in to_complete:
             warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
                 instrument, barcode)
         logger.warning(warn_msg)
+
 
 project.import_records(updated_records)
