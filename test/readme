@@ -1,0 +1,1 @@
+Il faut ajouter le dossier cron_to_redcap/ dans PYTHONPATH pour pouvoir excuter les tests unitaires.

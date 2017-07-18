@@ -168,16 +168,6 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
         :return: Les clone ET le ou les original record originaux
 
     """
-
-    print('record_to_clone')
-    print(record_to_clone)
-    print('redcap_fields')
-    print(redcap_fields)
-    print('records_by_couple')
-    print(records_by_couple)
-    print('num_of_clone')
-    print(num_of_clone)
-
     records = []
 
     if isinstance(record_to_clone, (list, tuple)):
@@ -205,10 +195,6 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
                   'redcap_repeat_instance': instance_number})
         instance_number += 1
         count += 1
-
-    print('records')
-    print(records)
-    sys.exit()
 
     return records
 
