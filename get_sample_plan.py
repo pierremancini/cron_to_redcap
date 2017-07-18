@@ -10,7 +10,7 @@ import yaml
 import csv
 from redcap import Project
 
-""" Export report from RedCap. """
+""" Export report from RedCap and format it as samples plan. """
 
 
 def args():
