@@ -158,14 +158,25 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
         C'est à dire une série de record dont les instance_number se suivent.
 
+        :param record_to_clone: record(s) à cloner, dans le cas où on a plusieurs records
+        (liste de record) ils seront traités comme étant identiques. Passer une liste de record
+        permet de renvoyer retourner un nombre cohérents de record à updater: les records modèle
+        (à compléter) et les clones. 
         :param num_of_clone: number of clone we are looking for
 
         -------------
-        :return: Les clone ET le record original
+        :return: Les clone ET le ou les original record originaux
 
     """
 
     records = []
+
+    if isinstance(record_to_clone, (list, tuple)):
+        records += record_to_clone
+        record_to_clone = record_to_clone[0]
+    else:
+        records.append(record_to_clone)
+    
     instrument = record_to_clone['redcap_repeat_instrument']
     type_barcode = redcap_fields['Barcode'][instrument]
 
@@ -175,7 +186,7 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
     patient_id = record_to_clone['patient_id']
 
-    count = 1
+    count = 0
     instance_number = max_instance_number((patient_id, instrument),
         records_by_couple) + 1
     while count != num_of_clone:
@@ -185,8 +196,6 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
                   'redcap_repeat_instance': instance_number})
         instance_number += 1
         count += 1
-
-    records.append(record_to_clone)
 
     return records
 
@@ -327,11 +336,8 @@ href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$',
 list_set_cng = [href[:-1] for href in href_set]
 
 set_to_complete = set(list_set_cng) - set(sets_completed)
-print('set_to_complete')
-print(set_to_complete)
-sys.exit()
+
 # On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
-# TODO: A supprimer pour la mise en production
 # set_to_complete = ['set6', 'set7']
 
 updated_records = []
@@ -346,42 +352,22 @@ for barcode in dicts_fastq_info:
         warn_msg = 'Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode)
         logger.warning(warn_msg)
     else:
+
+        clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
+
         # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
-        # C'est le cas classique.
-        if len(dicts_fastq_info[barcode]) == len(to_complete[barcode]):
-            for i in range(0, len(to_complete[barcode])):
-                updated_record = update(to_complete[barcode][i], redcap_fields,
-                    dicts_fastq_info[barcode][i])
-                updated_records.append(updated_record)
+        #    -> pas de clonage
+        if clone_nb == 0:
+            updated_records += multiple_update(to_complete[barcode], redcap_fields,
+                    dicts_fastq_info[barcode])
 
-        # 2em cas: il y un fastq CNG de plus que de record à completer dans RedCap
-        # Le script clone le record manquant.
-        elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) == 1:
-            if not args.disable_cloning:
-                for i in range(0, len(to_complete[barcode])):
-                    updated_record = update(to_complete[barcode][i], redcap_fields,
-                        dicts_fastq_info[barcode][i])
-                    updated_records.append(updated_record)
-
-        # 2em cas bis: il y a plus de un fastq de plus que de record à completer dans RedCap
-        elif len(dicts_fastq_info[barcode]) - len(to_complete[barcode]) > 1:
-            # Les fastq matchent les record à completer
-            for i in range(len(to_complete[barcode])):
-                updated_record = update(to_complete[barcode][i], redcap_fields,
-                    dicts_fastq_info[barcode][i])
-                updated_records.append(updated_record)
-
-            # Les fastq restant n'ont plus de records disponiblent, il faut en cloner
-            clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
-            remaining_fastqs = dicts_fastq_info[barcode][-clone_nb:]
-            to_clone = to_complete[barcode][0]
-
-            # Partie clonage
-            if not args.disable_cloning:
-                multiple_to_update = clone_chain_record(to_clone, redcap_fields, records_by_couple,
-                    clone_nb - 1)
-                updated_records += multiple_update(multiple_to_update, redcap_fields,
-                    remaining_fastqs)
+        #2em cas: le nombre de fastq CNG et suppérieur au nombre de record à completer dans RedCap
+        #   -> clonage, cas classique
+        elif clone_nb > 2:
+            multiple_to_update = clone_chain_record(to_complete[barcode], redcap_fields, records_by_couple,
+                    clone_nb)
+            updated_records += multiple_update(multiple_to_update, redcap_fields,
+                dicts_fastq_info[barcode])
 
 for barcode in to_complete:
     try:
@@ -395,6 +381,5 @@ for barcode in to_complete:
             warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
                 instrument, barcode)
         logger.warning(warn_msg)
-
 
 project.import_records(updated_records)
