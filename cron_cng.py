@@ -169,6 +169,15 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
 
     """
 
+    print('record_to_clone')
+    print(record_to_clone)
+    print('redcap_fields')
+    print(redcap_fields)
+    print('records_by_couple')
+    print(records_by_couple)
+    print('num_of_clone')
+    print(num_of_clone)
+
     records = []
 
     if isinstance(record_to_clone, (list, tuple)):
@@ -176,7 +185,7 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
         record_to_clone = record_to_clone[0]
     else:
         records.append(record_to_clone)
-    
+
     instrument = record_to_clone['redcap_repeat_instrument']
     type_barcode = redcap_fields['Barcode'][instrument]
 
@@ -196,6 +205,10 @@ def clone_chain_record(record_to_clone, redcap_fields, records_by_couple, num_of
                   'redcap_repeat_instance': instance_number})
         instance_number += 1
         count += 1
+
+    print('records')
+    print(records)
+    sys.exit()
 
     return records
 
@@ -254,132 +267,133 @@ def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
-# On log les uncaught exceptions
-sys.excepthook = handle_uncaught_exc
+if __name__ == '__main__':
+    # On log les uncaught exceptions
+    sys.excepthook = handle_uncaught_exc
 
 
-with open('logging.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-logger = set_logger(config)
+    with open('logging.yml', 'r') as ymlfile:
+        config = yaml.load(ymlfile)
+    logger = set_logger(config)
 
-opt_parser = argparse.ArgumentParser(description=__doc__)
-opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
-    help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
-opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
-    help='Désactive le clonage des instances de record manquant sur RedCap.')
-args = opt_parser.parse_args()
+    opt_parser = argparse.ArgumentParser(description=__doc__)
+    opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
+        help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
+    opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
+        help='Désactive le clonage des instances de record manquant sur RedCap.')
+    args = opt_parser.parse_args()
 
-# Lecture du fichier de configuration
-with open('config.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-with open('secret_config.yml', 'r') as ymlfile:
-    secret_config = yaml.load(ymlfile)
-config.update(secret_config)
+    # Lecture du fichier de configuration
+    with open('config.yml', 'r') as ymlfile:
+        config = yaml.load(ymlfile)
+    with open('secret_config.yml', 'r') as ymlfile:
+        secret_config = yaml.load(ymlfile)
+    config.update(secret_config)
 
-# Partie API redcap
-api_url = config['redcap_api_url']
-project = Project(api_url, config['api_key'])
+    # Partie API redcap
+    api_url = config['redcap_api_url']
+    project = Project(api_url, config['api_key'])
 
-# Strucure:
-# {field_label: {instrument: field_name}}
-redcap_fields = {}
+    # Strucure:
+    # {field_label: {instrument: field_name}}
+    redcap_fields = {}
 
-# Définition dynamique (par rapport au champs créer dans RedCap) des types
-for metadict in project.metadata:
-    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'],
-        metadict['field_name'])
+    # Définition dynamique (par rapport au champs créer dans RedCap) des types
+    for metadict in project.metadata:
+        redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'],
+            metadict['field_name'])
 
-response = project.export_records()
+    response = project.export_records()
 
-# TODO: A supprimer pour la mise en production
-with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
-    filenames_by_set = json.load(jsonfile)
-with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
-    md5_by_path = json.load(jsonfile)
+    # TODO: A supprimer pour la mise en production
+    with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
+        filenames_by_set = json.load(jsonfile)
+    with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
+        md5_by_path = json.load(jsonfile)
 
-# Record n'ayant pas les champs path remplis
-# {barcode: [record, record, ...]}
-to_complete = {}
-# Liste des déjà présent sur RedCap
-sets_completed = []
+    # Record n'ayant pas les champs path remplis
+    # {barcode: [record, record, ...]}
+    to_complete = {}
+    # Liste des déjà présent sur RedCap
+    sets_completed = []
 
-# Variable nécessaire à la création de clone de le cas où
-# on trouve un record avec le même barcode dans le CNG
-# Strucutre:
-# {(patient_id, type_barcode): [record, record]}
-records_by_couple = {}
+    # Variable nécessaire à la création de clone de le cas où
+    # on trouve un record avec le même barcode dans le CNG
+    # Strucutre:
+    # {(patient_id, type_barcode): [record, record]}
+    records_by_couple = {}
 
-for record in response:
-    # Creation de records_by_couple
-    instrument = record['redcap_repeat_instrument']
-    if record['redcap_repeat_instance'] and instrument:
-        patient_id = record['patient_id']
-        if record[redcap_fields['Barcode'][instrument]]:
-            records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']),
-                []).append(record)
-        if not record[redcap_fields['Path on cng'][instrument]]:
-            if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
-                if record[redcap_fields['Barcode'][instrument]]:
-                    barcode = record[redcap_fields['Barcode'][instrument]]
-                to_complete.setdefault(barcode, []).append(record)
+    for record in response:
+        # Creation de records_by_couple
+        instrument = record['redcap_repeat_instrument']
+        if record['redcap_repeat_instance'] and instrument:
+            patient_id = record['patient_id']
+            if record[redcap_fields['Barcode'][instrument]]:
+                records_by_couple.setdefault((patient_id, record['redcap_repeat_instrument']),
+                    []).append(record)
+            if not record[redcap_fields['Path on cng'][instrument]]:
+                if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
+                    if record[redcap_fields['Barcode'][instrument]]:
+                        barcode = record[redcap_fields['Barcode'][instrument]]
+                    to_complete.setdefault(barcode, []).append(record)
+            else:
+                # On retrouve le set dans le champ set
+                sets_completed.append(record[redcap_fields['Set'][instrument]])
+
+
+    page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']),
+        timeout=(3.05, 27))
+    soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
+
+    # liste des att. des tag <a> avec pour nom 'set'
+    href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
+    list_set_cng = [href[:-1] for href in href_set]
+
+    set_to_complete = set(list_set_cng) - set(sets_completed)
+
+    # On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
+    # set_to_complete = ['set9']
+
+    updated_records = []
+
+    # Dictionnaire avec les barcodes en 1ère clé
+    dicts_fastq_info = info_from_set(set_to_complete)
+
+    for barcode in dicts_fastq_info:
+        try:
+            to_complete[barcode]
+        except KeyError as e:
+            warn_msg = 'Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode)
+            logger.warning(warn_msg)
         else:
-            # On retrouve le set dans le champ set
-            sets_completed.append(record[redcap_fields['Set'][instrument]])
 
+            clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
 
-page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']),
-    timeout=(3.05, 27))
-soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
+            # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
+            #    -> pas de clonage
+            if clone_nb == 0:
+                updated_records += multiple_update(to_complete[barcode], redcap_fields,
+                        dicts_fastq_info[barcode])
 
-# liste des att. des tag <a> avec pour nom 'set'
-href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
-list_set_cng = [href[:-1] for href in href_set]
-
-set_to_complete = set(list_set_cng) - set(sets_completed)
-
-# On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
-# set_to_complete = ['set6', 'set7']
-
-updated_records = []
-
-# Dictionnaire avec les barcodes en 1ère clé
-dicts_fastq_info = info_from_set(set_to_complete)
-
-for barcode in dicts_fastq_info:
-    try:
-        to_complete[barcode]
-    except KeyError as e:
-        warn_msg = 'Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode)
-        logger.warning(warn_msg)
-    else:
-
-        clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
-
-        # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
-        #    -> pas de clonage
-        if clone_nb == 0:
-            updated_records += multiple_update(to_complete[barcode], redcap_fields,
+            # 2em cas: le nombre de fastq CNG et suppérieur au nombre de record à completer dans RedCap
+            #   -> clonage, cas classique
+            elif clone_nb > 2:
+                multiple_to_update = clone_chain_record(to_complete[barcode], redcap_fields, records_by_couple,
+                        clone_nb)
+                updated_records += multiple_update(multiple_to_update, redcap_fields,
                     dicts_fastq_info[barcode])
 
-        #2em cas: le nombre de fastq CNG et suppérieur au nombre de record à completer dans RedCap
-        #   -> clonage, cas classique
-        elif clone_nb > 2:
-            multiple_to_update = clone_chain_record(to_complete[barcode], redcap_fields, records_by_couple,
-                    clone_nb)
-            updated_records += multiple_update(multiple_to_update, redcap_fields,
-                dicts_fastq_info[barcode])
+    for barcode in to_complete:
+        try:
+            dicts_fastq_info[barcode]
+        except KeyError:
+            warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
+            for i in range(len(to_complete[barcode])):
+                patient_id = to_complete[barcode][i]['patient_id']
+                instrument = to_complete[barcode][i]['redcap_repeat_instrument']
+                barcode = to_complete[barcode][i][redcap_fields['Barcode'][instrument]]
+                warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
+                    instrument, barcode)
+            logger.warning(warn_msg)
 
-for barcode in to_complete:
-    try:
-        dicts_fastq_info[barcode]
-    except KeyError:
-        warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
-        for i in range(len(to_complete[barcode])):
-            patient_id = to_complete[barcode][i]['patient_id']
-            instrument = to_complete[barcode][i]['redcap_repeat_instrument']
-            barcode = to_complete[barcode][i][redcap_fields['Barcode'][instrument]]
-            warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
-                instrument, barcode)
-        logger.warning(warn_msg)
-
-project.import_records(updated_records)
+    project.import_records(updated_records)
