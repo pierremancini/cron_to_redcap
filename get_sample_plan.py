@@ -18,7 +18,6 @@ def args():
     opt_parser = argparse.ArgumentParser(description=__doc__)
     opt_parser.add_argument('-p', '--path', required=False, help='Path for output samples_plan')
     opt_parser.add_argument('--id', required=False, help='Report\'s id.')
-    opt_parser.add_argument('-f', '--format', required=False, help='csv, xml or json')
     return opt_parser.parse_args()
 
 
@@ -31,8 +30,6 @@ report_id = args.id
 if not report_id:
     report_id = '5'  # Correspond à Full sample plan multipli
 format = args.format
-if not format:
-    format = 'json'
 
 data = {
     'token': config['api_key'],
