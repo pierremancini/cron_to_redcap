@@ -15,14 +15,13 @@ class FieldNameError(redcap.RCAPIError):
     def __str__(self):
         return self.msg
 
-
-# Script's  dependencies
-with open('redcap.yml', 'r') as ymlfile:
+with open('config.yml', 'r') as ymlfile:
     config = yaml.load(ymlfile)
-api_url = 'http://ib101b/html/redcap/api/'
+with open('secret_config.yml', 'r') as ymlfile:
+    secret_config = yaml.load(ymlfile)
+config.update(secret_config)
 
-
-project = redcap.Project(api_url, config['api_key'])
+project = redcap.Project(config['redcap_api_url'], config['api_key'])
 
 instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
@@ -69,8 +68,6 @@ else:
     target_patient_id = args.patient_id
     target_field = args.field
     new_value = args.value
-
-    api_url = 'http://ib101b/html/redcap/api/'
 
     ids, fields = [], []
     ids.append(target_patient_id)
