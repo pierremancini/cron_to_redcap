@@ -373,7 +373,7 @@ if __name__ == '__main__':
         try:
             dicts_fastq_info[barcode]
         except KeyError:
-            warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG:\n'
+            warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG ou appartient à un set déjà intégré dans RedCap:\n'
             for i in range(len(to_complete[barcode])):
                 patient_id = to_complete[barcode][i]['patient_id']
                 instrument = to_complete[barcode][i]['redcap_repeat_instrument']
