@@ -265,8 +265,8 @@ if __name__ == '__main__':
     opt_parser = argparse.ArgumentParser(description=__doc__)
     opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
         help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
-    opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
-        help='Désactive le clonage des instances de record manquant sur RedCap.')
+    # opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
+    #     help='Désactive le clonage des instances de record manquant sur RedCap.')
     args = opt_parser.parse_args()
 
     # Lecture du fichier de configuration
