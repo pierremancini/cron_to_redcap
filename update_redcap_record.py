@@ -16,9 +16,6 @@ class FieldNameError(redcap.RCAPIError):
     def __str__(self):
         return self.msg
 
-
-project = redcap.Project(config['redcap_api_url'], config['api_key'])
-
 instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
 opt_parser = argparse.ArgumentParser(description=__doc__, prog='update_redcap.py')
@@ -78,33 +75,36 @@ ids, fields = [], []
 ids.append(target_patient_id)
 fields.append(target_field)
 
-# Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
-# n'avoir que du '1'/'0'
-if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
-    bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
-    try:
-        int(new_value)
-    except ValueError:
-        new_value = new_value.lower()
-    new_value = bool_switch[new_value]
+# On ne fait pas de blindage sur les champ complete
+if 'complete' not in target_field:
+    # Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
+    # n'avoir que du '1'/'0'
+    if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
+        bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
+        try:
+            int(new_value)
+        except ValueError:
+            new_value = new_value.lower()
+        new_value = bool_switch[new_value]
 
-if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
-    # On génère le radio_switch dynamiquement depuis les metadata
-    raw = metadata[target_field]['select_choices_or_calculations']
-    a = raw.split('|')
-    radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
-    try:
-        new_value = int(new_value)
-    except ValueError:
-        new_value = radio_switch[new_value]
+    if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
+        # On génère le radio_switch dynamiquement depuis les metadata
+        raw = metadata[target_field]['select_choices_or_calculations']
+        a = raw.split('|')
+        radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
+        try:
+            new_value = int(new_value)
+        except ValueError:
+            new_value = radio_switch[new_value]
 
-if args.full_fastq:
-    data_export = project.export_records(records=ids)
+    if args.full_fastq:
+        data_export = project.export_records(records=ids)
 
-    instrument = args.seq_form
-    for record in data_export:
-        if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
-            to_import = record
+        instrument = args.seq_form
+
+        for record in data_export:
+            if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
+                to_import = record
 
 # Modification d'un champ dans un instrument non-répétable
 else:
