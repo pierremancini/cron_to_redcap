@@ -1,5 +1,5 @@
 # ---- RedCap ----
-redcap_api_url: 'http://ib101b/html/redcap/api/'
+redcap_api_url: 'http://129.10.20.120/redcap/api/'
 
 
 # ---- CNG ----

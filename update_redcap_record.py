@@ -5,6 +5,7 @@ import sys
 import argparse
 import yaml
 import redcap
+import os
 
 
 class FieldNameError(redcap.RCAPIError):
@@ -15,13 +16,6 @@ class FieldNameError(redcap.RCAPIError):
     def __str__(self):
         return self.msg
 
-with open('config.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-with open('secret_config.yml', 'r') as ymlfile:
-    secret_config = yaml.load(ymlfile)
-config.update(secret_config)
-
-project = redcap.Project(config['redcap_api_url'], config['api_key'])
 
 instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
@@ -31,6 +25,8 @@ opt_parser.add_argument('-d', '--display-fields', required=False, action='store_
     help='Display redcap fields that can be updated.')
 # Arguments pour utilisation classique
 opt_parser.add_argument('-id', '--patient-id', required=False, help='Patient_id.')
+opt_parser.add_argument('-c', '--config', default="config.yml", help='config file.')
+opt_parser.add_argument('-s', '--secret', default="secret_config.yml", help='secret config file.')
 opt_parser.add_argument('-f', '--field', required=False, help='RedCap field.')
 opt_parser.add_argument('-v', '--value', required=False, help='New value.')
 opt_parser.add_argument('-fastq', '--full-fastq', required=False,
@@ -38,6 +34,14 @@ opt_parser.add_argument('-fastq', '--full-fastq', required=False,
 opt_parser.add_argument('--seq-form', required=False, choices=instrument_list,
     help='Form name related to sequencing')
 args = opt_parser.parse_args()
+
+with open(args.config, 'r') as ymlfile:
+    config = yaml.load(ymlfile)
+with open(args.secret, 'r') as ymlfile:
+    secret_config = yaml.load(ymlfile)
+config.update(secret_config)
+
+project = redcap.Project(config['redcap_api_url'], config['api_key'])
 
 # Exploitation des métadata
 to_display, metadata, redcap_fields = {}, {}, {}
@@ -75,23 +79,23 @@ else:
 
     # Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
     # n'avoir que du '1'/'0'
-    if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
-        bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
-        try:
-            int(new_value)
-        except ValueError:
-            new_value = new_value.lower()
-        new_value = bool_switch[new_value]
+    #if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
+        #bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
+        #try:
+            #int(new_value)
+        #except ValueError:
+            #new_value = new_value.lower()
+        #new_value = bool_switch[new_value]
 
-    if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
-        # On génère le radio_switch dynamiquement depuis les metadata
-        raw = metadata[target_field]['select_choices_or_calculations']
-        a = raw.split('|')
-        radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
-        try:
-            new_value = int(new_value)
-        except ValueError:
-            new_value = radio_switch[new_value]
+    #if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
+        ## On génère le radio_switch dynamiquement depuis les metadata
+        #raw = metadata[target_field]['select_choices_or_calculations']
+        #a = raw.split('|')
+        #radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
+        #try:
+            #new_value = int(new_value)
+        #except ValueError:
+            #new_value = radio_switch[new_value]
 
     if args.full_fastq:
         data_export = project.export_records(records=ids)
