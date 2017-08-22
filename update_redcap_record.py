@@ -17,6 +17,8 @@ class FieldNameError(redcap.RCAPIError):
         return self.msg
 
 
+project = redcap.Project(config['redcap_api_url'], config['api_key'])
+
 instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
 opt_parser = argparse.ArgumentParser(description=__doc__, prog='update_redcap.py')
@@ -54,6 +56,9 @@ for metadata_dict in project.metadata:
     redcap_fields.setdefault(metadata_dict['field_label'], {}).setdefault(metadata_dict['form_name'],
         metadata_dict['field_name'])
 
+if args.display_fields:
+    print(to_display)
+
 # On vérifie la correspondance nom_formulaire-nom_ed_champ si on update un champ de type sequencing
 try:
     if 'constit' in args.field and args.seq_form != 'germline_dna_sequencing':
@@ -65,52 +70,48 @@ try:
 except FieldNameError as e:
     raise e
 
+target_patient_id = args.patient_id
+target_field = args.field
+new_value = args.value
 
-if args.display_fields:
-    print(to_display)
+ids, fields = [], []
+ids.append(target_patient_id)
+fields.append(target_field)
+
+# Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
+# n'avoir que du '1'/'0'
+if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
+    bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
+    try:
+        int(new_value)
+    except ValueError:
+        new_value = new_value.lower()
+    new_value = bool_switch[new_value]
+
+if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
+    # On génère le radio_switch dynamiquement depuis les metadata
+    raw = metadata[target_field]['select_choices_or_calculations']
+    a = raw.split('|')
+    radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
+    try:
+        new_value = int(new_value)
+    except ValueError:
+        new_value = radio_switch[new_value]
+
+if args.full_fastq:
+    data_export = project.export_records(records=ids)
+
+    instrument = args.seq_form
+    for record in data_export:
+        if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
+            to_import = record
+
+# Modification d'un champ dans un instrument non-répétable
 else:
-    target_patient_id = args.patient_id
-    target_field = args.field
-    new_value = args.value
+    data_export = project.export_records(records=ids, fields=fields)
+    to_import = data_export[0]
 
-    ids, fields = [], []
-    ids.append(target_patient_id)
-    fields.append(target_field)
-
-    # Si le champ visé est un champ 'yes'/'no' on blinde la nouvelle valeur pour
-    # n'avoir que du '1'/'0'
-    #if metadata[target_field]['field_type'] in ['yesno', 'truefalse']:
-        #bool_switch = {'no': '0', 'yes': '1', 'false': '0', 'true': '1', '0': '0', '1': '1'}
-        #try:
-            #int(new_value)
-        #except ValueError:
-            #new_value = new_value.lower()
-        #new_value = bool_switch[new_value]
-
-    #if metadata[target_field]['field_type'] in ['radio', 'dropdown']:
-        ## On génère le radio_switch dynamiquement depuis les metadata
-        #raw = metadata[target_field]['select_choices_or_calculations']
-        #a = raw.split('|')
-        #radio_switch = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
-        #try:
-            #new_value = int(new_value)
-        #except ValueError:
-            #new_value = radio_switch[new_value]
-
-    if args.full_fastq:
-        data_export = project.export_records(records=ids)
-
-        instrument = args.seq_form
-        for record in data_export:
-            if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
-                to_import = record
-
-    # Modification d'un champ dans un instrument non-répétable
-    else:
-        data_export = project.export_records(records=ids, fields=fields)
-        to_import = data_export[0]
-
-    # Update one record
-    to_import[target_field] = new_value
-    response = project.import_records(data_export)
-    print(response)
+# Update one record
+to_import[target_field] = new_value
+response = project.import_records(data_export)
+print(response)

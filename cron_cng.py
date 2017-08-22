@@ -26,18 +26,16 @@ def set_logger(config_dict):
 
     # Génération du path des logs dynamiquement en fonction du nom du script
     project_folder = os.path.relpath(__file__, '..').split('/')[0]
-    name = os.path.splitext(__file__)[0]
+    filename = os.path.splitext(os.path.split(__file__)[-1])[0]
 
-    path = '/var/log/{}/{}/{}'.format(project_folder, name, name + '.log')
+    path = '/var/log/{}/{}/{}'.format(project_folder, filename, filename + '.log')
     config['handlers']['file_handler']['filename'] = path
 
     try:
         logging.config.dictConfig(config_dict)
     except ValueError:
-
-        if not os.path.exists('/var/log/{}/{}'.format(project_folder, name)):
-            os.makedirs('/var/log/{}/{}'.format(project_folder, name))
-        # Il faut créé les dossiers de log
+        if not os.path.exists('/var/log/{}/{}'.format(project_folder, filename)):
+            os.makedirs('/var/log/{}/{}'.format(project_folder, filename))
         logging.config.dictConfig(config_dict)
 
     logger = logging.getLogger()
