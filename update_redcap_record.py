@@ -56,17 +56,6 @@ for metadata_dict in project.metadata:
 if args.display_fields:
     print(to_display)
 
-# On vérifie la correspondance nom_formulaire-nom_ed_champ si on update un champ de type sequencing
-try:
-    if 'constit' in args.field and args.seq_form != 'germline_dna_sequencing':
-        raise FieldNameError(args.field, args.seq_form)
-    elif 'rna' in args.field and args.seq_form != 'rna_sequencing':
-        raise FieldNameError(args.field, args.seq_form)
-    elif args.seq_form != 'germline_dna_sequencing':
-        raise FieldNameError(args.field, args.seq_form)
-except FieldNameError as e:
-    raise e
-
 target_patient_id = args.patient_id
 target_field = args.field
 new_value = args.value
