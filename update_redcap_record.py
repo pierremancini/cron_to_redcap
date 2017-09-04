@@ -86,21 +86,24 @@ if 'complete' not in target_field:
         except ValueError:
             new_value = radio_switch[new_value]
 
-    if args.full_fastq:
-        data_export = project.export_records(records=ids)
+# Update de record répétable
+if args.full_fastq:
+    data_export = project.export_records(records=ids)
 
-        instrument = args.seq_form
+    instrument = args.seq_form
 
-        for record in data_export:
-            if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
-                to_import = record
-
-# Modification d'un champ dans un instrument non-répétable
+    for record in data_export:
+        if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
+            to_import = record
+# Update de record dans un instrument non-répétable
 else:
     data_export = project.export_records(records=ids, fields=fields)
+
     to_import = data_export[0]
 
 # Update one record
 to_import[target_field] = new_value
+
+
 response = project.import_records(data_export)
 print(response)
