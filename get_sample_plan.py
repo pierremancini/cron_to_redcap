@@ -48,7 +48,7 @@ data = {
 }
 
 
-api_url = config.redcap_api_url
+api_url = config['redcap_api_url']
 
 r = requests.post(api_url, data=data)
 
