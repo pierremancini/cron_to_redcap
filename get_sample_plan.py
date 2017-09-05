@@ -80,28 +80,35 @@ def make_samples_plan(record_data, redcap_fields):
     rows_tsv = []
 
     for record in record_data:
-        if record['redcap_repeat_instrument'] in seq_instru and record['redcap_repeat_instance']:
-            instrument = record['redcap_repeat_instrument']
 
-            if instrument == 'germline_dna_sequencing':
-                analysis_type = 'CD'
-            elif instrument == 'tumor_dna_sequencing':
-                analysis_type = 'MD'
-            elif instrument == 'rna_sequencing':
-                analysis_type = 'MR'
-
-            path_on_cng = record[redcap_fields['Path on cng'][instrument]]
-            fastQ_file_cng = record[redcap_fields['FastQ filename CNG'][instrument]]
-            fastQ_file_local = record[redcap_fields['FastQ filename Local'][instrument]]
-            set = record[redcap_fields['Set'][instrument]]
-            patient_id = record['patient_id']
-            case = '{}-{}-{}'.format(patient_id, set, analysis_type)
-            row = [case, path_on_cng, fastQ_file_cng, fastQ_file_local]
-            rows_tsv.append(row)
-            fastQ_file_cng_md5 = fastQ_file_cng + '.md5'
-            fastQ_file_local_md5 = fastQ_file_local + '.md5'
-            md5_row = [case, path_on_cng, fastQ_file_cng_md5, fastQ_file_local_md5]
-            rows_tsv.append(md5_row)
+        # Si le report ne contient aucun record la variable record_data possède quand même des dict
+        # (quasiment vides).
+        try:
+            if record['redcap_repeat_instrument'] in seq_instru and record['redcap_repeat_instance']:
+                instrument = record['redcap_repeat_instrument']
+    
+                if instrument == 'germline_dna_sequencing':
+                    analysis_type = 'CD'
+                elif instrument == 'tumor_dna_sequencing':
+                    analysis_type = 'MD'
+                elif instrument == 'rna_sequencing':
+                    analysis_type = 'MR'
+    
+                path_on_cng = record[redcap_fields['Path on cng'][instrument]]
+                fastQ_file_cng = record[redcap_fields['FastQ filename CNG'][instrument]]
+                fastQ_file_local = record[redcap_fields['FastQ filename Local'][instrument]]
+                set = record[redcap_fields['Set'][instrument]]
+                patient_id = record['patient_id']
+                case = '{}-{}-{}'.format(patient_id, set, analysis_type)
+                row = [case, path_on_cng, fastQ_file_cng, fastQ_file_local]
+                rows_tsv.append(row)
+                fastQ_file_cng_md5 = fastQ_file_cng + '.md5'
+                fastQ_file_local_md5 = fastQ_file_local + '.md5'
+                md5_row = [case, path_on_cng, fastQ_file_cng_md5, fastQ_file_local_md5]
+                rows_tsv.append(md5_row)
+        except KeyError as e:
+            pass
+        
     return rows_tsv
 
 
