@@ -18,13 +18,19 @@ def args():
     opt_parser = argparse.ArgumentParser(description=__doc__)
     opt_parser.add_argument('-p', '--path', required=False, help='Path for output samples_plan')
     opt_parser.add_argument('--id', required=False, help='Report\'s id.')
+    opt_parser.add_argument('-c', '--config', default="config.yml", help='config file.')
+    opt_parser.add_argument('-s', '--secret', default="secret_config.yml", help='secret config file.')
     return opt_parser.parse_args()
 
 
 args = args()
 
-with open('secret_config.yml', 'r') as ymlfile:
+
+with open(args.config, 'r') as ymlfile:
     config = yaml.load(ymlfile)
+with open(args.secret, 'r') as ymlfile:
+    secret_config = yaml.load(ymlfile)
+config.update(secret_config)
 
 report_id = args.id
 if not report_id:
@@ -42,7 +48,7 @@ data = {
 }
 
 
-api_url = 'http://ib101b/html/redcap/api/'
+api_url = config.redcap_api_url
 
 r = requests.post(api_url, data=data)
 
