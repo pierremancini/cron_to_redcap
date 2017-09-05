@@ -29,7 +29,6 @@ with open('secret_config.yml', 'r') as ymlfile:
 report_id = args.id
 if not report_id:
     report_id = '5'  # Correspond à Full sample plan multipli
-format = args.format
 
 data = {
     'token': config['api_key'],
