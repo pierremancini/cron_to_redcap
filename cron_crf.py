@@ -325,14 +325,14 @@ with ftplib.FTP_TLS(config['crf_host']) as ftps:
     ftps.cwd(head_crf)
 
     try:
-        os.mkdir(os.path.join('data', 'crf_extraction'))
+        os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
     except FileExistsError:
         pass
 
-    with open(os.path.join('data', 'crf_extraction', tail_crf), 'wb') as f:
+    with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
-with open(os.path.join('data', 'crf_extraction', tail_crf), 'r') as csvfile:
+with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     couple_count = treat_crf(dict_reader, config['corresp'])
 

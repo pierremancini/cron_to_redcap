@@ -19,3 +19,5 @@ corresp:
   SQBCGER: germline_dna_cng_barcode
 
 path_to_log: '/var/log'
+
+path_to_data: 'data'
