@@ -26,22 +26,22 @@ def set_logger(config_dict):
 
     # Génération du path des logs dynamiquement en fonction du nom du script
     project_folder = os.path.relpath(__file__, '..').split('/')[0]
-    filename = os.path.splitext(os.path.split(__file__)[-1])[0]
+    name = os.path.splitext(__file__)[0]
 
-    path = '/var/log/{}/{}/{}'.format(project_folder, filename, filename + '.log')
-    config['handlers']['file_handler']['filename'] = path
+    path = '{}/{}/{}/{}'.format(config['path_to_log'], project_folder, name, name + '.log')
+    config_dict['handlers']['file_handler']['filename'] = path
 
     try:
         logging.config.dictConfig(config_dict)
     except ValueError:
-        if not os.path.exists('/var/log/{}/{}'.format(project_folder, filename)):
-            os.makedirs('/var/log/{}/{}'.format(project_folder, filename))
+        if not os.path.exists('{}/{}/{}'.format(config['path_to_log'], project_folder, name)):
+            os.makedirs('{}/{}/{}'.format(config['path_to_log'], project_folder, name))
+        # Il faut créé les dossiers de log
         logging.config.dictConfig(config_dict)
 
     logger = logging.getLogger()
 
     return logger
-
 
 def get_md5(fastq_path, mock=False):
     """ Get md5 value with path to fastq file name.
@@ -251,28 +251,34 @@ def handle_uncaught_exc(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
+def args():
+    """Parse options."""
+    opt_parser = argparse.ArgumentParser(description=__doc__)
+    opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
+    help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG (pour le debug).')
+    opt_parser.add_argument('-c', '--config', default="config.yml", help='config file.')
+    opt_parser.add_argument('-s', '--secret', default="secret_config.yml", help='secret config file.')
+    opt_parser.add_argument('-l', '--log', default="logging.yml", help='logging configuration file.')
+    return opt_parser.parse_args()
+
+
+
 if __name__ == '__main__':
     # On log les uncaught exceptions
     sys.excepthook = handle_uncaught_exc
 
+    args = args()
 
-    with open('logging.yml', 'r') as ymlfile:
+    with open(args.config, 'r') as ymlfile:
         config = yaml.load(ymlfile)
-    logger = set_logger(config)
-
-    opt_parser = argparse.ArgumentParser(description=__doc__)
-    opt_parser.add_argument('-m', '--mock', required=False, action='store_true',
-        help='Active le mocking des données md5 des fastq en lisant fichier dump du CNG.')
-    # opt_parser.add_argument('-d', '--disable-cloning', required=False, action='store_true',
-    #     help='Désactive le clonage des instances de record manquant sur RedCap.')
-    args = opt_parser.parse_args()
-
-    # Lecture du fichier de configuration
-    with open('config.yml', 'r') as ymlfile:
-        config = yaml.load(ymlfile)
-    with open('secret_config.yml', 'r') as ymlfile:
+    with open(args.secret, 'r') as ymlfile:
         secret_config = yaml.load(ymlfile)
     config.update(secret_config)
+
+    with open(args.log, 'r') as ymlfile:
+        log_config = yaml.load(ymlfile)
+
+    logger = set_logger(log_config)
 
     # Partie API redcap
     api_url = config['redcap_api_url']

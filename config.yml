@@ -17,3 +17,5 @@ corresp:
   SQBCRNA: rna_cng_barcode
   SQBCTUM: tumor_dna_barcode
   SQBCGER: germline_dna_cng_barcode
+
+path_to_log: '/var/log'

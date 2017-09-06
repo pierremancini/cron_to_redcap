@@ -16,6 +16,7 @@ import logging
 import logging.config
 import ftplib
 import socket
+import argparse
 
 # TODO: Mettre logger les erreurs si le script est en production
 # Avec rotation de fichiers ? Plusieurs fichiers ?
@@ -32,21 +33,21 @@ def set_logger(config_dict):
     project_folder = os.path.relpath(__file__, '..').split('/')[0]
     name = os.path.splitext(__file__)[0]
 
-    path = '/var/log/{}/{}/{}'.format(project_folder, name, name + '.log')
-    config['handlers']['file_handler']['filename'] = path
+    path = '{}/{}/{}/{}'.format(config['path_to_log'], project_folder, name, name + '.log')
+    config_dict['handlers']['file_handler']['filename'] = path
 
     try:
         logging.config.dictConfig(config_dict)
     except ValueError:
-
-        if not os.path.exists('/var/log/{}/{}'.format(project_folder, name)):
-            os.makedirs('/var/log/{}/{}'.format(project_folder, name))
+        if not os.path.exists('{}/{}/{}'.format(config['path_to_log'], project_folder, name)):
+            os.makedirs('{}/{}/{}'.format(config['path_to_log'], project_folder, name))
         # Il faut créé les dossiers de log
         logging.config.dictConfig(config_dict)
 
     logger = logging.getLogger()
 
     return logger
+
 
 
 def treat_crf(reader, corresp):
@@ -254,10 +255,7 @@ def treat_redcap_response(response, redcap_fields):
     return redcap_couple, redcap_barcodes, redcap_records
 
 
-with open('logging.yml', 'r') as ymlfile:
-    config = yaml.load(ymlfile)
 
-logger = set_logger(config)
 
 def handle_exception(exc_type, exc_value, exc_traceback):
 
@@ -268,14 +266,30 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
+def args():
+    """Parse options."""
+    opt_parser = argparse.ArgumentParser(description=__doc__)
+    opt_parser.add_argument('-c', '--config', default="config.yml", help='config file.')
+    opt_parser.add_argument('-s', '--secret', default="secret_config.yml", help='secret config file.')
+    opt_parser.add_argument('-l', '--log', default="logging.yml", help='logging configuration file.')
+    return opt_parser.parse_args()
+
+
+args = args()
+
 # On log les uncaught exceptions
 sys.excepthook = handle_exception
 
-with open('config.yml', 'r') as ymlfile:
+with open(args.config, 'r') as ymlfile:
     config = yaml.load(ymlfile)
-with open('secret_config.yml', 'r') as ymlfile:
+with open(args.secret, 'r') as ymlfile:
     secret_config = yaml.load(ymlfile)
 config.update(secret_config)
+
+with open(args.log, 'r') as ymlfile:
+    log_config = yaml.load(ymlfile)
+
+logger = set_logger(log_config)
 
 
 api_url = config['redcap_api_url']
