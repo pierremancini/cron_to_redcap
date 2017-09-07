@@ -344,18 +344,14 @@ if __name__ == '__main__':
     set_to_complete = set(list_set_cng) - set(sets_completed)
 
     # On force la lecture de certains sets
-    set_to_complete.update(config['mandatory_set'])
-    print(set_to_complete)
+    if config['mandatory_set']:
+        set_to_complete.update(config['mandatory_set'])
 
     # On ignore 'manuellement' certains sets
     set_to_complete = set_to_complete - set(config['ignored_set'])
 
-    if len(set_to_complete) == 1 and next(iter(set_to_complete)) is None:
-        set_to_complete = set()
 
     updated_records = []
-
-    print(set_to_complete)
 
     # Dictionnaire avec les barcodes en 1ère clé
     dicts_fastq_info = info_from_set(set_to_complete)

@@ -25,9 +25,7 @@ ignored_set:
 
 # Liste des sets (cng) que cron_cng.py ira systématiquement lire
 mandatory_set:
-  # Do not use ~ or Null if the llist is empty
-  - ~
-
+  # Do not use ~ or Null if the list is empty
 
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
