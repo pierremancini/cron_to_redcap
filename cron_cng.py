@@ -296,10 +296,11 @@ if __name__ == '__main__':
     response = project.export_records()
 
     # TODO: A supprimer pour la mise en production
-    with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
-        filenames_by_set = json.load(jsonfile)
-    with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
-        md5_by_path = json.load(jsonfile)
+    if args.mock:
+        with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
+            filenames_by_set = json.load(jsonfile)
+        with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
+            md5_by_path = json.load(jsonfile)
 
     # Record n'ayant pas les champs path remplis
     # {barcode: [record, record, ...]}
