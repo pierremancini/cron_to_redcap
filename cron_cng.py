@@ -340,12 +340,22 @@ if __name__ == '__main__':
     href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
     list_set_cng = [href[:-1] for href in href_set]
 
+    # On ignore les sets déjà cloturés
     set_to_complete = set(list_set_cng) - set(sets_completed)
 
-    # On fixe artificiellement les set à compléter pour compléter des records de set déjà dans RedCap
-    # set_to_complete = ['set9']
+    # On force la lecture de certains sets
+    set_to_complete.update(config['mandatory_set'])
+    print(set_to_complete)
+
+    # On ignore 'manuellement' certains sets
+    set_to_complete = set_to_complete - set(config['ignored_set'])
+
+    if len(set_to_complete) == 1 and next(iter(set_to_complete)) is None:
+        set_to_complete = set()
 
     updated_records = []
+
+    print(set_to_complete)
 
     # Dictionnaire avec les barcodes en 1ère clé
     dicts_fastq_info = info_from_set(set_to_complete)
@@ -354,7 +364,10 @@ if __name__ == '__main__':
         try:
             to_complete[barcode]
         except KeyError as e:
-            warn_msg = 'Le barcode {} n\'est pas présent dans le RedCap alors qu\'il est sur le CNG'.format(barcode)
+            # On cherche les sets (cng) associé au barcode ayant déclenché le warning.
+            sets = {dico['Set'] for dico in dicts_fastq_info[barcode]}
+            sets_warning = ', '.join(sets)
+            warn_msg = 'Le barcode {} ({}) n\'est pas présent dans le RedCap alors qu\'il est sur le CNG.'.format(barcode, sets_warning)
             logger.warning(warn_msg)
         else:
 
