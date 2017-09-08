@@ -85,15 +85,18 @@ def make_samples_plan(record_data, redcap_fields):
         # (quasiment vides).
         try:
             if record['redcap_repeat_instrument'] in seq_instru and record['redcap_repeat_instance']:
+
+                # Si pas d'instrument -> KeyError. Permet de ne pas tenir compte des records vides
+                # qui passent le report.
                 instrument = record['redcap_repeat_instrument']
-    
+
                 if instrument == 'germline_dna_sequencing':
                     analysis_type = 'CD'
                 elif instrument == 'tumor_dna_sequencing':
                     analysis_type = 'MD'
                 elif instrument == 'rna_sequencing':
                     analysis_type = 'MR'
-    
+
                 path_on_cng = record[redcap_fields['Path on cng'][instrument]]
                 fastQ_file_cng = record[redcap_fields['FastQ filename CNG'][instrument]]
                 fastQ_file_local = record[redcap_fields['FastQ filename Local'][instrument]]
@@ -108,7 +111,7 @@ def make_samples_plan(record_data, redcap_fields):
                 rows_tsv.append(md5_row)
         except KeyError as e:
             pass
-        
+
     return rows_tsv
 
 
