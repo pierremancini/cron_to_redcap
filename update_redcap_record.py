@@ -16,7 +16,7 @@ class FieldNameError(redcap.RCAPIError):
     def __str__(self):
         return self.msg
 
-instrument_list = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
+seq_instrument = ['germline_dna_sequencing', 'tumor_dna_sequencing', 'rna_sequencing']
 
 opt_parser = argparse.ArgumentParser(description=__doc__, prog='update_redcap.py')
 # Affichage des champs modifiables
@@ -30,8 +30,7 @@ opt_parser.add_argument('-f', '--field', required=False, help='RedCap field.')
 opt_parser.add_argument('-v', '--value', required=False, help='New value.')
 opt_parser.add_argument('-fastq', '--full-fastq', required=False,
     help='Content of FastQ filename Local. To use when updating a sequencing related field.')
-opt_parser.add_argument('--seq-form', required=False, choices=instrument_list,
-    help='Form name related to sequencing')
+opt_parser.add_argument('--instrument', required=False, help='Form name')
 args = opt_parser.parse_args()
 
 with open(args.config, 'r') as ymlfile:
@@ -86,11 +85,14 @@ if 'complete' not in target_field:
         except ValueError:
             new_value = radio_switch[new_value]
 
-# Update de record répétable
-if args.full_fastq:
+
+# Si l'instrument en question est de type sequencing, on vérifie que l'argument fastq n'est pas null
+if args.instrument in seq_instrument and not args.full_fastq:
+    raise ValueError('Fastq name is missing for --full-fastq.')
+elif args.instrument in seq_instrument and args.full_fastq:
     data_export = project.export_records(records=ids)
 
-    instrument = args.seq_form
+    instrument = args.instrument
 
     for record in data_export:
         if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
@@ -103,7 +105,6 @@ else:
 
 # Update one record
 to_import[target_field] = new_value
-
 
 response = project.import_records(data_export)
 print(response)
