@@ -5,7 +5,6 @@ import sys
 import argparse
 import yaml
 import redcap
-import os
 
 
 class FieldNameError(redcap.RCAPIError):
