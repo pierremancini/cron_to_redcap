@@ -94,9 +94,13 @@ elif args.instrument in seq_instrument and args.full_fastq:
 
     instrument = args.instrument
 
+    record_match = False
     for record in data_export:
         if record[redcap_fields['FastQ filename Local'][instrument]] == args.full_fastq:
             to_import = record
+            record_match = True
+    if not record_match:
+        raise ValueError('Fastq name does not match with any record corresponding to given instrument.')
 # Update de record dans un instrument non-répétable
 else:
     data_export = project.export_records(records=ids, fields=fields)
