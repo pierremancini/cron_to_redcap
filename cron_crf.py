@@ -78,10 +78,6 @@ def treat_crf(reader, corresp):
             elif index in corresp['clinical']:
                 clinical_data[patient_id][corresp['clinical'][index]] = line[index]
 
-    print(clinical_data)
-
-    sys.exit()
-
     return {'couple_count': couple_count, 'clinical_data': clinical_data}
 
 
@@ -320,25 +316,26 @@ path_crf_file = config['path_crf_file']
 head_crf, tail_crf = os.path.split(path_crf_file)
 
 
-# get crf file with ftps
-# with ftplib.FTP_TLS(config['crf_host']) as ftps:
-#     ftps = ftplib.FTP_TLS(config['crf_host'])
-#     ftps.login(config['login_crf'], config['password_crf'])
-#     # Encrypt all data, not only login/password
-#     ftps.prot_p()
-#     # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-#     # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-#     ftps.af = socket.AF_INET6
-#     ftps.cwd(head_crf)
+get crf file with ftps
+with ftplib.FTP_TLS(config['crf_host']) as ftps:
+    ftps = ftplib.FTP_TLS(config['crf_host'])
+    ftps.login(config['login_crf'], config['password_crf'])
+    # Encrypt all data, not only login/password
+    ftps.prot_p()
+    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+    ftps.af = socket.AF_INET6
+    ftps.cwd(head_crf)
 
-#     try:
-#         os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
-#     except FileExistsError:
-#         pass
+    try:
+        os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
+    except FileExistsError:
+        pass
 
-#     with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
-#         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+    with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
+        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
+#dev: with open(os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv'), 'r') as csvfile:
 with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     crf_data = treat_crf(dict_reader, config['corresp'])
@@ -354,5 +351,15 @@ to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
     create_chain))
+
+for patient_id in crf_data['clinical_data']:
+    record = {"patient_id": patient_id,
+              "redcap_repeat_instrument": "",
+              "redcap_repeat_instance": ""}
+
+    for index in crf_data['clinical_data'][patient_id]:
+        record[index] = crf_data['clinical_data'][patient_id][index]
+
+    records_to_import.append(record)
 
 project.import_records(records_to_import)
