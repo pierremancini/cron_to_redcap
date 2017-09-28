@@ -49,7 +49,6 @@ def set_logger(config_dict):
     return logger
 
 
-
 def treat_crf(reader, corresp):
     """
         Transform data from CRF.
@@ -65,15 +64,25 @@ def treat_crf(reader, corresp):
     # {(patient_id, type_barcode): nb}
     couple_count = {}
 
+    # {patient_id: {champ_redcap: valeur}}
+    clinical_data = {}
+
     for line in reader:
         patient_id = line['USUBJID']
+        clinical_data[patient_id] = {}
         for index in line:
-            if index in corresp and line[index]:
-                couple_count.setdefault((patient_id, corresp[index]), {'count': 0, 'barcode': []})
-                couple_count[(patient_id, corresp[index])]['count'] += 1
-                couple_count[(patient_id, corresp[index])]['barcode'].append(line[index])
+            if index in corresp['barcode'] and line[index]:
+                couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
+                couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
+                couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
+            elif index in corresp['clinical']:
+                clinical_data[patient_id][corresp['clinical'][index]] = line[index]
 
-    return couple_count
+    print(clinical_data)
+
+    sys.exit()
+
+    return {'couple_count': couple_count, 'clinical_data': clinical_data}
 
 
 def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records, type_barcode_to_instrument):
@@ -255,8 +264,6 @@ def treat_redcap_response(response, redcap_fields):
     return redcap_couple, redcap_barcodes, redcap_records
 
 
-
-
 def handle_exception(exc_type, exc_value, exc_traceback):
 
     if issubclass(exc_type, KeyboardInterrupt):
@@ -314,37 +321,38 @@ head_crf, tail_crf = os.path.split(path_crf_file)
 
 
 # get crf file with ftps
-with ftplib.FTP_TLS(config['crf_host']) as ftps:
-    ftps = ftplib.FTP_TLS(config['crf_host'])
-    ftps.login(config['login_crf'], config['password_crf'])
-    # Encrypt all data, not only login/password
-    ftps.prot_p()
-    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-    ftps.af = socket.AF_INET6
-    ftps.cwd(head_crf)
+# with ftplib.FTP_TLS(config['crf_host']) as ftps:
+#     ftps = ftplib.FTP_TLS(config['crf_host'])
+#     ftps.login(config['login_crf'], config['password_crf'])
+#     # Encrypt all data, not only login/password
+#     ftps.prot_p()
+#     # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+#     # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+#     ftps.af = socket.AF_INET6
+#     ftps.cwd(head_crf)
 
-    try:
-        os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
-    except FileExistsError:
-        pass
+#     try:
+#         os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
+#     except FileExistsError:
+#         pass
 
-    with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
-        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+#     with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
+#         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
 with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
-    couple_count = treat_crf(dict_reader, config['corresp'])
+    crf_data = treat_crf(dict_reader, config['corresp'])
 
 # Les couple patient_id, type_barcode des records non vide de redcap
 pack = treat_redcap_response(response, redcap_fields)
 redcap_couple, redcap_barcodes, redcap_records = pack
 
-pack = create_n_clone(couple_count, redcap_couple,
-    redcap_barcodes, redcap_records, type_barcode_to_instrument)
+pack = create_n_clone(crf_data['couple_count'], redcap_couple, redcap_barcodes, redcap_records,
+    type_barcode_to_instrument)
+
 to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
-records_to_import = list(itertools.chain(to_clone_barcode, clone_chain,
-                                    to_create_barcode, create_chain))
+records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
+    create_chain))
 
 project.import_records(records_to_import)

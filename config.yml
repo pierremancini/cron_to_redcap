@@ -33,6 +33,12 @@ path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing.tsv'
 
 # Correspondance colonne fichier/champ redcap
 corresp:
-  SQBCRNA: rna_cng_barcode
-  SQBCTUM: tumor_dna_barcode
-  SQBCGER: germline_dna_cng_barcode
+
+  clinical:
+    SITYP: samplenature_adn
+
+  barcode:
+    SQBCRNA: rna_cng_barcode
+    SQBCTUM: tumor_dna_barcode
+    SQBCGER: germline_dna_cng_barcode
+
