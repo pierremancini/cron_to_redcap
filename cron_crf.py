@@ -316,7 +316,7 @@ path_crf_file = config['path_crf_file']
 head_crf, tail_crf = os.path.split(path_crf_file)
 
 
-get crf file with ftps
+# get crf file with ftps
 with ftplib.FTP_TLS(config['crf_host']) as ftps:
     ftps = ftplib.FTP_TLS(config['crf_host'])
     ftps.login(config['login_crf'], config['password_crf'])
