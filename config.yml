@@ -30,6 +30,7 @@ mandatory_set:
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing.tsv'
+path_bioanalysis: 'MULTIPLI/bioanalysis'
 
 # Correspondance colonne fichier/champ redcap
 corresp:

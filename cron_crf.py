@@ -315,7 +315,6 @@ response = project.export_records()
 path_crf_file = config['path_crf_file']
 head_crf, tail_crf = os.path.split(path_crf_file)
 
-
 # get crf file with ftps
 with ftplib.FTP_TLS(config['crf_host']) as ftps:
     ftps = ftplib.FTP_TLS(config['crf_host'])
@@ -335,7 +334,7 @@ with ftplib.FTP_TLS(config['crf_host']) as ftps:
     with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
         ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
 
-#dev: with open(os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv'), 'r') as csvfile:
+# dev: with open(os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv'), 'r') as csvfile:
 with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     crf_data = treat_crf(dict_reader, config['corresp'])
