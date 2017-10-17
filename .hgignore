@@ -5,3 +5,4 @@ data/**
 *~
 secret_config.yml
 *.sublime-*
+*.orig
