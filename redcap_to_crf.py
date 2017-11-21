@@ -15,6 +15,9 @@ import csv
 import argparse
 import sys
 import hashlib
+import subprocess
+import time
+import update_redcap_record as redcap_record
 
 from pprint import pprint
 
@@ -25,21 +28,23 @@ def get_ftp_md5(ftp, remote_path):
     return m.hexdigest()
 
 
-def md5(fname):
+def md5(fpath):
     hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
+    with open(fpath, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
 
-def upload_file(local_path, remote_path, connection, timeout=6, max_tries=1):
+def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
 
     """ Upload file on ftp server.
 
         :param remote_path: Head + tail file path
         :param server: Dictonnary {host: '', login: '', password: ''}
     """
+
+    # TODO: md5() pointe vers le mauvais chemin
 
     local_head, local_fname = os.path.split(local_path)
     remote_head, remote_fname = os.path.split(remote_path)
@@ -58,6 +63,8 @@ def upload_file(local_path, remote_path, connection, timeout=6, max_tries=1):
                     # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
                     ftps.af = socket.AF_INET6
                     ftps.cwd(remote_head)
+
+                    # expect FileNotFoundError
                     with open(os.path.join(local_path), 'rb') as file:
                         ftps.storbinary('STOR {}'.format(local_fname), file)
 
@@ -72,13 +79,16 @@ def upload_file(local_path, remote_path, connection, timeout=6, max_tries=1):
                     ftps.af = socket.AF_INET6
                     ftp_md5 = get_ftp_md5(ftps, remote_path)
 
-                if ftp_md5 == md5(local_fname):
+                if ftp_md5 == md5(local_path):
                     print('md5 ok')
                     return True
                 else:
                     print('Wrong md5.')
                     print('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
+        # FileNotFoundError
+        except FileNotFoundError as e:
+            raise
         except ftplib.all_errors as e:
             print(e)
             print('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
@@ -139,14 +149,14 @@ local_path = os.path.join('data', 'crf_extraction', extraction_filename)
 path_crf_file = os.path.join('MULTIPLI', extraction_filename)
 
 # Traitement de la réponse redcap
-
-# On enregistre le fichier en local aussi pour avoir un backup
+id_list = []
 with open(local_path, 'w') as tsvfile:
     csvwriter = csv.writer(tsvfile, delimiter='\t')
     csvwriter.writerow(header)
     for record in response[1:]:
         if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
-            if record['patient_id'] not in to_exclude:
+            if record['patient_id'] not in to_exclude and not record['sent_at']:
+                id_list.append(record['patient_id'])
                 row = [record['patient_id'],
                 record['date_receipt_files'],
                 record['quality_control'],
@@ -154,6 +164,14 @@ with open(local_path, 'w') as tsvfile:
                 record['data_of_availability']]
                 csvwriter.writerow(row)
 
+# pb fichier vide
+
 connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
 # Attention, le fichier précédent sera écrasé
-upload_file(local_path, path_crf_file, connection)
+# Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
+# de la vérification md5 de la fonction
+if upload_file(local_path, path_crf_file, connection):
+    # Set le champ sent_at des records du fichier envoyé
+    for patient_id in id_list:
+        redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_at',
+            time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
