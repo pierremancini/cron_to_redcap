@@ -23,6 +23,9 @@ from project_logging import set_logger
 
 from pprint import pprint
 
+from contextlib import redirect_stdout
+import io
+
 
 def get_ftp_md5(ftp, remote_path):
     m = hashlib.md5()
@@ -52,51 +55,56 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
     remote_head, remote_fname = os.path.split(remote_path)
 
     for count in range(max_tries):
-        try:
+        # Capture du stdout de storbinary pour le logger
+        alt_stream = io.StringIO()
+        with redirect_stdout(alt_stream):
             try:
-                with ftplib.FTP_TLS(connection['host'], timeout=timeout) as ftps:
+                try:
+                    with ftplib.FTP_TLS(connection['host'], timeout=timeout) as ftps:
 
-                    ftps.set_debuglevel(2)
+                        ftps.set_debuglevel(1)
 
-                    ftps.login(connection['login'], connection['password'])
-                    # Encrypt all data, not only login/password
-                    ftps.prot_p()
-                    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-                    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-                    ftps.af = socket.AF_INET6
-                    ftps.cwd(remote_head)
+                        ftps.login(connection['login'], connection['password'])
+                        # Encrypt all data, not only login/password
+                        ftps.prot_p()
+                        # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+                        # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+                        ftps.af = socket.AF_INET6
+                        ftps.cwd(remote_head)
 
-                    # expect FileNotFoundError
-                    with open(os.path.join(local_path), 'rb') as file:
-                        ftps.storbinary('STOR {}'.format(local_fname), file)
 
-            # Si on a un timeout ça se passe comme prévu.
-            except socket.timeout as e:
-                logger.debug(e)
+                        # Copie sur le remote
+                        with open(os.path.join(local_path), 'rb') as file:
+                            ftps.storbinary('STOR {}'.format(local_fname), file)
 
-                # On vérifié l'intégrité du fichier transféré
-                with ftplib.FTP_TLS(config['crf_host']) as ftps:
-                    ftps.login(connection['login'], connection['password'])
-                    ftps.prot_p()
-                    ftps.af = socket.AF_INET6
-                    ftp_md5 = get_ftp_md5(ftps, remote_path)
+                # Si on a un timeout ça se passe comme prévu.
+                except socket.timeout as e:
+                    logger.debug(e)
+                    logger.debug('stdout of storbinary :\n' + alt_stream.getvalue())
+                    # On vérifié l'intégrité du fichier transféré
+                    with ftplib.FTP_TLS(config['crf_host']) as ftps:
+                        ftps.login(connection['login'], connection['password'])
+                        ftps.prot_p()
+                        ftps.af = socket.AF_INET6
+                        ftp_md5 = get_ftp_md5(ftps, remote_path)
 
-                if ftp_md5 == md5(local_path):
-                    print('md5 ok')
-                    logger.debug('md5 ok')
-                    return True
-                else:
-                    logger.warning('{} Wrong md5.'.format(local_path))
-                    logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+                    if ftp_md5 == md5(local_path):
+                        logger.info('md5 ok')
+                        return True
+                    else:
+                        logger.warning('{} Wrong md5.'.format(local_path))
+                        logger.debbug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
-        # FileNotFoundError
-        except FileNotFoundError as e:
-            # On log l'erreur pour le débug sans bloquer
-            logger.debbug(e)
-            raise
-        except ftplib.all_errors as e:
-            logger.error(e)
-            logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+            # FileNotFoundError
+            except FileNotFoundError as e:
+                # On log l'erreur pour le débug sans bloquer
+                logger.debbug(e)
+                raise
+            except ftplib.all_errors as e:
+                logger.error(e)
+                logger.debbug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+
+
 
     return False
 

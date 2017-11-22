@@ -1,5 +1,5 @@
 root:
-  level: WARNING
+  level: DEBUG
   handlers: [console, file_handler]
 
 version: 1
@@ -20,7 +20,7 @@ handlers:
 
   file_handler:
     class: logging.handlers.RotatingFileHandler
-    level: DEBUG
+    level: INFO
     filename: default # dynamicaly changed in the script
     formatter: simple
     maxBytes: 10485760  # 10MB
