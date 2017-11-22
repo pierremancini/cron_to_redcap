@@ -16,32 +16,8 @@ import logging.config
 import json
 import argparse
 
+from project_logging import set_loggert
 
-def set_logger(config_dict):
-    """ Gère le système de log.
-
-        1. Check et création des dossier de log.
-        2. Instanciation de l'objet logger pour le reste du script.
-    """
-
-    # Génération du path des logs dynamiquement en fonction du nom du script
-    project_folder = os.path.relpath(__file__, '..').split('/')[0]
-    name = os.path.splitext(__file__)[0]
-
-    path = '{}/{}/{}/{}'.format(config['path_to_log'], project_folder, name, name + '.log')
-    config_dict['handlers']['file_handler']['filename'] = path
-
-    try:
-        logging.config.dictConfig(config_dict)
-    except ValueError:
-        if not os.path.exists('{}/{}/{}'.format(config['path_to_log'], project_folder, name)):
-            os.makedirs('{}/{}/{}'.format(config['path_to_log'], project_folder, name))
-        # Il faut créé les dossiers de log
-        logging.config.dictConfig(config_dict)
-
-    logger = logging.getLogger()
-
-    return logger
 
 def get_md5(fastq_path, mock=False):
     """ Get md5 value with path to fastq file name.
@@ -278,7 +254,7 @@ if __name__ == '__main__':
     with open(args.log, 'r') as ymlfile:
         log_config = yaml.load(ymlfile)
 
-    logger = set_logger(log_config)
+    logger = set_logger(config['path_to_log'], log_config)
 
     # Partie API redcap
     api_url = config['redcap_api_url']

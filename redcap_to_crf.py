@@ -19,6 +19,8 @@ import subprocess
 import time
 import update_redcap_record as redcap_record
 
+from project_logging import set_loggert
+
 from pprint import pprint
 
 
@@ -105,73 +107,83 @@ def args():
     return opt_parser.parse_args()
 
 
-args = args()
+if __name__ == '__main__':
 
-with open(args.config, 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-with open(args.secret, 'r') as ymlfile:
-    secret_config = yaml.load(ymlfile)
-config.update(secret_config)
+    args = args()
 
-# Génération du fichier d'exportation vers CRF
-project = Project(config['redcap_api_url'], config['api_key'])
-response = project.export_records(forms='bioinformatic_analysis')
+    with open(args.config, 'r') as ymlfile:
+        config = yaml.load(ymlfile)
+    with open(args.secret, 'r') as ymlfile:
+        secret_config = yaml.load(ymlfile)
+    config.update(secret_config)
 
-# Strucure:
-# {field_label: {instrument: field_name}}
-redcap_fields = {}
+    with open(args.log, 'r') as ymlfile:
+        log_config = yaml.load(ymlfile)
 
-bio_analysis = {}
+    logger = set_logger(config['path_to_log'], log_config)
 
-# Utilise les metadata pour retrouver les champs correspondant au formulaire bioinformatic_analysis
-# ICI à changer
-for metadict in project.metadata:
-    if metadict['form_name'] == 'bioinformatic_analysis':
-        bio_analysis.setdefault(metadict['field_label'], metadict['field_name'])
+    # Génération du fichier d'exportation vers CRF
+    project = Project(config['redcap_api_url'], config['api_key'])
+    response = project.export_records(forms='bioinformatic_analysis')
 
-    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
+    # Strucure:
+    # {field_label: {instrument: field_name}}
+    redcap_fields = {}
 
+    bio_analysis = {}
 
-# On veux les champs bioinformatic_analysis pour créer le header du fichier d'export
-# Puis on remplis avec les valeurs elle même
-header = ['Patient ID',
-    'Date if receipt of all needed files',
-    'Quality control',
-    'Availability in genVarXplorer for interpretation',
-    'If yes data of availability'] # ! Utiliser 'If yes, data of availability' avec ',' pour le label
+    # Utilise les metadata pour retrouver les champs correspondant au formulaire bioinformatic_analysis
+    # ICI à changer
+    for metadict in project.metadata:
+        if metadict['form_name'] == 'bioinformatic_analysis':
+            bio_analysis.setdefault(metadict['field_label'], metadict['field_name'])
+
+        redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
 
 
-# Records utilisés pour tester redcap
-to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
+    # On veux les champs bioinformatic_analysis pour créer le header du fichier d'export
+    # Puis on remplis avec les valeurs elle même
+    header = ['Patient ID',
+        'Date if receipt of all needed files',
+        'Quality control',
+        'Availability in genVarXplorer for interpretation',
+        'If yes data of availability'] # ! Utiliser 'If yes, data of availability' avec ',' pour le label
 
-extraction_filename = 'bioanalysis_import.txt'
-local_path = os.path.join('data', 'crf_extraction', extraction_filename)
-path_crf_file = os.path.join('MULTIPLI', extraction_filename)
 
-# Traitement de la réponse redcap
-id_list = []
-with open(local_path, 'w') as tsvfile:
-    csvwriter = csv.writer(tsvfile, delimiter='\t')
-    csvwriter.writerow(header)
-    for record in response[1:]:
-        if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
-            if record['patient_id'] not in to_exclude and not record['sent_at']:
-                id_list.append(record['patient_id'])
-                row = [record['patient_id'],
-                record['date_receipt_files'],
-                record['quality_control'],
-                record['availab_genvarxplorer'],
-                record['data_of_availability']]
-                csvwriter.writerow(row)
+    # Records utilisés pour tester redcap
+    to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
 
-# pb fichier vide
+    extraction_filename = 'bioanalysis_import.txt'
+    local_path = os.path.join('data', 'crf_extraction', extraction_filename)
+    path_crf_file = os.path.join('MULTIPLI', extraction_filename)
 
-connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
-# Attention, le fichier précédent sera écrasé
-# Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
-# de la vérification md5 de la fonction
-if upload_file(local_path, path_crf_file, connection):
-    # Set le champ sent_at des records du fichier envoyé
-    for patient_id in id_list:
-        redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_at',
-            time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
+    # Traitement de la réponse redcap
+    id_list = []
+    with open(local_path, 'w') as tsvfile:
+        csvwriter = csv.writer(tsvfile, delimiter='\t')
+        csvwriter.writerow(header)
+        for record in response[1:]:
+            if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
+                if record['patient_id'] not in to_exclude and not record['sent_at']:
+                    id_list.append(record['patient_id'])
+                    row = [record['patient_id'],
+                    record['date_receipt_files'],
+                    record['quality_control'],
+                    record['availab_genvarxplorer'],
+                    record['data_of_availability']]
+                    csvwriter.writerow(row)
+
+    # pb fichier vide
+
+    connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
+    # Attention, le fichier précédent sera écrasé
+    # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
+    # de la vérification md5 de la fonction
+    if upload_file(local_path, path_crf_file, connection):
+        # Set le champ sent_at des records du fichier envoyé
+        for patient_id in id_list:
+            redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_at',
+                time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
+
+    # TODO:
+    # - Mettre en place le système de log comme dans cron_crf.py et cron_cng.py    -> [ ]
