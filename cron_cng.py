@@ -16,7 +16,7 @@ import logging.config
 import json
 import argparse
 
-from project_logging import set_loggert
+from project_logging import set_logger
 
 
 def get_md5(fastq_path, mock=False):

@@ -18,7 +18,7 @@ import ftplib
 import socket
 import argparse
 
-from project_logging import set_loggert
+from project_logging import set_logger
 
 
 def treat_crf(reader, corresp):

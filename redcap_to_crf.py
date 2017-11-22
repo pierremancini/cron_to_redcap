@@ -19,7 +19,7 @@ import subprocess
 import time
 import update_redcap_record as redcap_record
 
-from project_logging import set_loggert
+from project_logging import set_logger
 
 from pprint import pprint
 
@@ -72,7 +72,7 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
 
             # Si on a un timeout ça se passe comme prévu.
             except socket.timeout as e:
-                print(e)
+                logger.debug(e)
 
                 # On vérifié l'intégrité du fichier transféré
                 with ftplib.FTP_TLS(config['crf_host']) as ftps:
@@ -83,19 +83,31 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
 
                 if ftp_md5 == md5(local_path):
                     print('md5 ok')
+                    logger.debug('md5 ok')
                     return True
                 else:
-                    print('Wrong md5.')
-                    print('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+                    logger.warning('{} Wrong md5.'.format(local_path))
+                    logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
         # FileNotFoundError
         except FileNotFoundError as e:
+            # On log l'erreur pour le débug sans bloquer
+            logger.debbug(e)
             raise
         except ftplib.all_errors as e:
-            print(e)
-            print('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+            logger.error(e)
+            logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
     return False
+
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
 def args():
@@ -110,6 +122,9 @@ def args():
 if __name__ == '__main__':
 
     args = args()
+
+    # On log les uncaught exceptions
+    sys.excepthook = handle_exception
 
     with open(args.config, 'r') as ymlfile:
         config = yaml.load(ymlfile)
@@ -172,8 +187,6 @@ if __name__ == '__main__':
                     record['availab_genvarxplorer'],
                     record['data_of_availability']]
                     csvwriter.writerow(row)
-
-    # pb fichier vide
 
     connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
     # Attention, le fichier précédent sera écrasé
