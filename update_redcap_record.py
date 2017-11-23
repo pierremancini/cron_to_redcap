@@ -86,7 +86,7 @@ def update(api_url, api_key, patient_id, field, value, instrument, fastq=None):
     # Update one record
     to_import[target_field] = new_value
 
-    response = project.import_records(data_export)
+    response = project.import_records(data_export, overwrite='overwrite')
     print(response)
 
 
