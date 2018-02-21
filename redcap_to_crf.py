@@ -8,14 +8,12 @@ import os
 import yaml
 from redcap import Project
 import logging
-import logging.config
 import ftplib
 import socket
 import csv
 import argparse
 import sys
 import hashlib
-import subprocess
 import time
 import update_redcap_record as redcap_record
 
@@ -42,14 +40,11 @@ def md5(fpath):
 
 
 def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
-
     """ Upload file on ftp server.
 
         :param remote_path: Head + tail file path
         :param server: Dictonnary {host: '', login: '', password: ''}
     """
-
-    # TODO: md5() pointe vers le mauvais chemin
 
     local_head, local_fname = os.path.split(local_path)
     remote_head, remote_fname = os.path.split(remote_path)
@@ -71,7 +66,6 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
                         # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
                         ftps.af = socket.AF_INET6
                         ftps.cwd(remote_head)
-
 
                         # Copie sur le remote
                         with open(os.path.join(local_path), 'rb') as file:
@@ -103,8 +97,6 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
             except ftplib.all_errors as e:
                 logger.error(e)
                 logger.debbug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
-
-
 
     return False
 
@@ -163,7 +155,6 @@ if __name__ == '__main__':
 
         redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
 
-
     # On veux les champs bioinformatic_analysis pour créer le header du fichier d'export
     # Puis on remplis avec les valeurs elle même
     header = ['Patient ID',
@@ -171,7 +162,6 @@ if __name__ == '__main__':
         'Quality control',
         'Availability in genVarXplorer for interpretation',
         'If yes data of availability'] # ! Utiliser 'If yes, data of availability' avec ',' pour le label
-
 
     # Records utilisés pour tester redcap
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
@@ -187,7 +177,7 @@ if __name__ == '__main__':
         csvwriter.writerow(header)
         for record in response[1:]:
             if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
-                if record['patient_id'] not in to_exclude and not record['sent_at']:
+                if record['patient_id'] not in to_exclude and not record['sent_to_ennov_at']:
                     id_list.append(record['patient_id'])
                     row = [record['patient_id'],
                     record['date_receipt_files'],
@@ -201,10 +191,7 @@ if __name__ == '__main__':
     # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
     # de la vérification md5 de la fonction
     if upload_file(local_path, path_crf_file, connection):
-        # Set le champ sent_at des records du fichier envoyé
+        # Set le champ sent_to_ennov_at des records du fichier envoyé
         for patient_id in id_list:
-            redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_at',
+            redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
                 time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
-
-    # TODO:
-    # - Mettre en place le système de log comme dans cron_crf.py et cron_cng.py    -> [ ]
