@@ -183,7 +183,7 @@ if __name__ == '__main__':
                     record['date_receipt_files'],
                     record['quality_control'],
                     record['availab_genvarxplorer'],
-                    record['data_of_availability']]
+                    record['date_of_availability']]
                     csvwriter.writerow(row)
 
     connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
