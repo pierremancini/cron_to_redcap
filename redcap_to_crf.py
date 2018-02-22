@@ -166,7 +166,7 @@ if __name__ == '__main__':
     # Records utilisés pour tester redcap
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
 
-    extraction_filename = 'bioanalysis_import.txt'
+    extraction_filename = 'bioanalysis_import.csv'
     local_path = os.path.join('data', 'crf_extraction', extraction_filename)
     path_crf_file = os.path.join('MULTIPLI', extraction_filename)
 
