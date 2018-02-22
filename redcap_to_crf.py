@@ -173,7 +173,7 @@ if __name__ == '__main__':
     # Traitement de la réponse redcap
     id_list = []
     with open(local_path, 'w') as tsvfile:
-        csvwriter = csv.writer(tsvfile, delimiter='\t')
+        csvwriter = csv.writer(tsvfile, delimiter=',')
         csvwriter.writerow(header)
         for record in response[1:]:
             if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
