@@ -36,4 +36,4 @@ response = project.export_records(fields=['patient_id'])
 
 for subrecord in response:
     redcap_record.update(config['redcap_api_url'], config['api_key'], subrecord['patient_id'],
-    'sent_at', '', 'bioinformatic_analysis')
+    'sent_to_ennov_at', '', 'bioinformatic_analysis')
