@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
     # Génération du fichier d'exportation vers CRF
     project = Project(config['redcap_api_url'], config['api_key'])
-    response = project.export_records(forms='bioinformatic_analysis')
+    response = project.export_records(forms='bioinformatic_analysis', raw_or_label='label')
 
     # Strucure:
     # {field_label: {instrument: field_name}}
@@ -186,12 +186,12 @@ if __name__ == '__main__':
                     record['date_of_availability']]
                     csvwriter.writerow(row)
 
-    connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
-    # Attention, le fichier précédent sera écrasé
-    # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
-    # de la vérification md5 de la fonction
-    if upload_file(local_path, path_crf_file, connection):
-        # Set le champ sent_to_ennov_at des records du fichier envoyé
-        for patient_id in id_list:
-            redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
-                time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
+    # connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
+    # # Attention, le fichier précédent sera écrasé
+    # # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
+    # # de la vérification md5 de la fonction
+    # if upload_file(local_path, path_crf_file, connection):
+    #     # Set le champ sent_to_ennov_at des records du fichier envoyé
+    #     for patient_id in id_list:
+    #         redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
+    #             time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
