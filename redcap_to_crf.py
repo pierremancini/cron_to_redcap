@@ -43,7 +43,7 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
     """ Upload file on ftp server.
 
         :param remote_path: Head + tail file path
-        :param server: Dictonnary {host: '', login: '', password: ''}
+        :param connection: Dictonnary {host: '', login: '', password: ''}
     """
 
     local_head, local_fname = os.path.split(local_path)
@@ -186,12 +186,12 @@ if __name__ == '__main__':
                     record['date_of_availability']]
                     csvwriter.writerow(row)
 
-    # connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
-    # # Attention, le fichier précédent sera écrasé
-    # # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
-    # # de la vérification md5 de la fonction
-    # if upload_file(local_path, path_crf_file, connection):
-    #     # Set le champ sent_to_ennov_at des records du fichier envoyé
-    #     for patient_id in id_list:
-    #         redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
-    #             time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
+    connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
+    # Attention, le fichier précédent sera écrasé
+    # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
+    # de la vérification md5 de la fonction
+    if upload_file(local_path, path_crf_file, connection):
+        # Set le champ sent_to_ennov_at des records du fichier envoyé
+        for patient_id in id_list:
+            redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
+                time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
