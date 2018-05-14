@@ -87,16 +87,16 @@ def upload_file(local_path, remote_path, connection, timeout=5, max_tries=2):
                         return True
                     else:
                         logger.warning('{} Wrong md5.'.format(local_path))
-                        logger.debbug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+                        logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
             # FileNotFoundError
             except FileNotFoundError as e:
                 # On log l'erreur pour le débug sans bloquer
-                logger.debbug(e)
+                logger.debug(e)
                 raise
             except ftplib.all_errors as e:
                 logger.error(e)
-                logger.debbug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
+                logger.debug('FTP upload: Attemp n°{} , failed to upload {}'.format(count + 1, local_fname))
 
     return False
 
