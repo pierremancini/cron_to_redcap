@@ -50,11 +50,11 @@ print("yo")
 print(project)
 
 
-s1 = project.export_records(records=patient_id,events=["analysis_arm_1"], fields=["cinsarc_signature","analysis_date"])
+s1 = project.export_records(records=patient_id,events=["analysis_arm_1"], fields=["analysis_cinsarc_signature","analysis_date"])
 s1=s1[0]
-if not s1["cinsarc_signature"] and not s1["analysis_date"]:
+if not s1["analysis_cinsarc_signature"] and not s1["analysis_date"]:
 	to_import = [{'patient_id':patient_id,'redcap_event_name':'analysis_arm_1','redcap_repeat_instance':'1',
-				'cinsarc_signature':cinsarc_status,'analysis_date':analysis_date}]
+				'analysis_cinsarc_signature':cinsarc_status,'analysis_date':analysis_date}]
 	response = project.import_records(to_import)
 	print(response)
 else:

@@ -27,14 +27,14 @@ except OSError:
 logFile = open("logfile.log","a")
 
 for s in subset:
-	# print("Patient id : ",s["patient_id"],"repeat instance : ", s["redcap_repeat_instance"], s["cel_file"], s["cinsarc_signature"])
+	# print("Patient id : ",s["patient_id"],"repeat instance : ", s["redcap_repeat_instance"], s["cel_file"], s["analysis_cinsarc_signature"])
 	logFile.write("\n")
-	message = "Patient id : %s, repeat instance : %s %s %s"  % (s["patient_id"], s["redcap_repeat_instance"],s["cel_file"], s["cinsarc_signature"])
+	message = "Patient id : %s, repeat instance : %s %s %s"  % (s["patient_id"], s["redcap_repeat_instance"],s["cel_file"], s["analysis_cinsarc_signature"])
 	logFile.write(message)
 	logFile.write("\n")
 
 	if s["cel_file"] == "[document]":
-		if not s["cinsarc_signature"] and not s["analysis_date"]:
+		if not s["analysis_cinsarc_signature"] and not s["analysis_date"]:
 
 			# print("Patient ",s["patient_id"],"  ",s["redcap_repeat_instance"]," has file for you, download it !")
 			message = "Patient : %s, analysis repeat instance : %s has file for you, download it !"  % (s["patient_id"], s["redcap_repeat_instance"])
