@@ -241,12 +241,47 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
+def bring_crf_file(script_config):
+    """ Copy crf file localy from FTP server
+
+        :param script_config: Script's configuration dictionary.
+
+        :return: path of downloaded crf file.
+
+    """
+
+    head_crf, tail_crf = os.path.split(config['path_crf_file'])
+
+    folder_download = os.path.join(config['path_to_data'], 'crf_extraction')
+    path_download = os.path.join(folder_download, tail_crf)
+
+    with ftplib.FTP_TLS(config['crf_host']) as ftps:
+        ftps.login(config['login_crf'], config['password_crf'])
+        # Encrypt all data, not only login/password
+        ftps.prot_p()
+        # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
+        # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
+        ftps.af = socket.AF_INET6
+        ftps.cwd(head_crf)
+
+        try:
+            os.mkdir(folder_download)
+        except FileExistsError:
+            pass
+
+        with open(path_download, 'wb') as f:
+            ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
+
+    return path_download
+
+
 def args():
     """Parse options."""
     opt_parser = argparse.ArgumentParser(description=__doc__)
     opt_parser.add_argument('-c', '--config', default="config.yml", help='config file.')
     opt_parser.add_argument('-s', '--secret', default="secret_config.yml", help='secret config file.')
     opt_parser.add_argument('-l', '--log', default="logging.yml", help='logging configuration file.')
+    opt_parser.add_argument('--dev', action='store_true', help='developpement mode. Does not look for crf file on FTP.')
     return opt_parser.parse_args()
 
 
@@ -283,29 +318,14 @@ type_barcode_to_instrument = {field_name: instrument for instrument, field_name 
 
 response = project.export_records()
 
-path_crf_file = config['path_crf_file']
-head_crf, tail_crf = os.path.split(path_crf_file)
+if args.dev:
+    local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv')
+else:
+    # get crf file with ftps
+    local_path_crf = bring_crf_file(config)
 
-# get crf file with ftps
-with ftplib.FTP_TLS(config['crf_host']) as ftps:
-    ftps.login(config['login_crf'], config['password_crf'])
-    # Encrypt all data, not only login/password
-    ftps.prot_p()
-    # Déclare l'IP comme étant de la famille v6 pour être compatible avec ftplib (même si on reste en v4)
-    # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
-    ftps.af = socket.AF_INET6
-    ftps.cwd(head_crf)
 
-    try:
-        os.mkdir(os.path.join(config['path_to_data'], 'crf_extraction'))
-    except FileExistsError:
-        pass
-
-    with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'wb') as f:
-        ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
-
-# dev: with open(os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv'), 'r') as csvfile:
-with open(os.path.join(config['path_to_data'], 'crf_extraction', tail_crf), 'r') as csvfile:
+with open(local_path_crf, 'r') as csvfile:
     dict_reader = csv.DictReader(csvfile, delimiter='\t')
     crf_data = treat_crf(dict_reader, config['corresp'])
 
