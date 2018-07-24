@@ -27,6 +27,10 @@ def treat_crf(reader, corresp):
 
         :param reader: Content of .tsv's CRF file
         :param barcode_index: Correspondance colonne fichier/champ redcap
+
+
+        :return: - couple_count: data relative to barcode
+                 - other_data: data contained in other fields of crf file. Includes clinical data.
     """
 
     # Couple = patient_id & type_barcode,
@@ -37,20 +41,20 @@ def treat_crf(reader, corresp):
     couple_count = {}
 
     # {patient_id: {champ_redcap: valeur}}
-    clinical_data = {}
+    other_data = {}
 
     for line in reader:
         patient_id = line['USUBJID']
-        clinical_data[patient_id] = {}
+        other_data[patient_id] = {}
         for index in line:
             if index in corresp['barcode'] and line[index]:
                 couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
                 couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
                 couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
-            elif index in corresp['clinical']:
-                clinical_data[patient_id][corresp['clinical'][index]] = line[index]
+            elif index in corresp['other']:
+                other_data[patient_id][corresp['other'][index]] = line[index]
 
-    return {'couple_count': couple_count, 'clinical_data': clinical_data}
+    return {'couple_count': couple_count, 'other_data': other_data}
 
 
 def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records, type_barcode_to_instrument):
@@ -341,13 +345,13 @@ to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
     create_chain))
 
-for patient_id in crf_data['clinical_data']:
+for patient_id in crf_data['other']:
     record = {"patient_id": patient_id,
               "redcap_repeat_instrument": "",
               "redcap_repeat_instance": ""}
 
-    for index in crf_data['clinical_data'][patient_id]:
-        record[index] = crf_data['clinical_data'][patient_id][index]
+    for index in crf_data['other'][patient_id]:
+        record[index] = crf_data['other'][patient_id][index]
 
     records_to_import.append(record)
 
