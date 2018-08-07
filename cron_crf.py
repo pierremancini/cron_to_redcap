@@ -289,70 +289,71 @@ def args():
     return opt_parser.parse_args()
 
 
-args = args()
+if __name__ == '__main__':
+    args = args()
 
-# On log les uncaught exceptions
-sys.excepthook = handle_exception
+    # On log les uncaught exceptions
+    sys.excepthook = handle_exception
 
-with open(args.config, 'r') as ymlfile:
-    config = yaml.load(ymlfile)
-with open(args.secret, 'r') as ymlfile:
-    secret_config = yaml.load(ymlfile)
-config.update(secret_config)
+    with open(args.config, 'r') as ymlfile:
+        config = yaml.load(ymlfile)
+    with open(args.secret, 'r') as ymlfile:
+        secret_config = yaml.load(ymlfile)
+    config.update(secret_config)
 
-with open(args.log, 'r') as ymlfile:
-    log_config = yaml.load(ymlfile)
+    with open(args.log, 'r') as ymlfile:
+        log_config = yaml.load(ymlfile)
 
-logger = set_logger(config['path_to_log'], log_config)
+    logger = set_logger(config['path_to_log'], log_config)
 
-api_url = config['redcap_api_url']
-project = Project(api_url, config['api_key'])
+    api_url = config['redcap_api_url']
+    project = Project(api_url, config['api_key'])
 
-# Strucure:
-# {field_label: {instrument: field_name}}
-redcap_fields = {}
+    # Strucure:
+    # {field_label: {instrument: field_name}}
+    redcap_fields = {}
 
-# Définition dynamique (par rapport au champs créer dans RedCap) des types
-for metadict in project.metadata:
-    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
+    # Définition dynamique (par rapport au champs créer dans RedCap) des types
+    for metadict in project.metadata:
+        redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
 
-# Correspondance des champs barcode et redcap_repeated_instrument
-# dans un résultat d'exportation de données via l'api redcap
-type_barcode_to_instrument = {field_name: instrument for instrument, field_name in redcap_fields['Barcode'].items()}
+    # Correspondance des champs barcode et redcap_repeated_instrument
+    # dans un résultat d'exportation de données via l'api redcap
+    type_barcode_to_instrument = {field_name: instrument for instrument, field_name in redcap_fields['Barcode'].items()}
 
-response = project.export_records()
+    response = project.export_records()
 
-if args.dev:
-    local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv')
-else:
-    # get crf file with ftps
-    local_path_crf = bring_crf_file(config)
+    if args.dev:
+        local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv')
+    else:
+        # get crf file with ftps
+        local_path_crf = bring_crf_file(config)
 
 
-with open(local_path_crf, 'r') as csvfile:
-    dict_reader = csv.DictReader(csvfile, delimiter='\t')
-    crf_data = treat_crf(dict_reader, config['corresp'])
+    with open(local_path_crf, 'r') as csvfile:
+        dict_reader = csv.DictReader(csvfile, delimiter='\t')
+        crf_data = treat_crf(dict_reader, config['corresp'])
 
-# Les couple patient_id, type_barcode des records non vide de redcap
-pack = treat_redcap_response(response, redcap_fields)
-redcap_couple, redcap_barcodes, redcap_records = pack
+    # Les couple patient_id, type_barcode des records non vide de redcap
+    pack = treat_redcap_response(response, redcap_fields)
+    redcap_couple, redcap_barcodes, redcap_records = pack
 
-pack = create_n_clone(crf_data['couple_count'], redcap_couple, redcap_barcodes, redcap_records,
-    type_barcode_to_instrument)
+    pack = create_n_clone(crf_data['couple_count'], redcap_couple, redcap_barcodes, redcap_records,
+        type_barcode_to_instrument)
 
-to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
+    to_clone_barcode, clone_chain, to_create_barcode, create_chain = pack
 
-records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
-    create_chain))
+    records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
+        create_chain))
 
-for patient_id in crf_data['other']:
-    record = {"patient_id": patient_id,
-              "redcap_repeat_instrument": "",
-              "redcap_repeat_instance": ""}
+    for patient_id in crf_data['other']:
+        record = {"patient_id": patient_id,
+                  "redcap_repeat_instrument": "",
+                  "redcap_repeat_instance": ""}
 
-    for index in crf_data['other'][patient_id]:
-        record[index] = crf_data['other'][patient_id][index]
+        for index in crf_data['other'][patient_id]:
+            record[index] = crf_data['other'][patient_id][index]
 
-    records_to_import.append(record)
+        records_to_import.append(record)
 
-project.import_records(records_to_import)
+    project.import_records(records_to_import)
