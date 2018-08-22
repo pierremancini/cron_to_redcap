@@ -52,7 +52,11 @@ def treat_crf(reader, corresp):
                 couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
                 couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
             elif index in corresp['other']:
-                other_data[patient_id][corresp['other'][index]] = line[index]
+                if isinstance(corresp['other'][index], list):
+                    for field_name in corresp['other'][index]:
+                        other_data[patient_id][field_name] = line[index]
+                else:
+                    other_data[patient_id][corresp['other'][index]] = line[index]
 
     return {'couple_count': couple_count, 'other_data': other_data}
 
@@ -346,13 +350,13 @@ if __name__ == '__main__':
     records_to_import = list(itertools.chain(to_clone_barcode, clone_chain, to_create_barcode,
         create_chain))
 
-    for patient_id in crf_data['other']:
+    for patient_id in crf_data['other_data']:
         record = {"patient_id": patient_id,
                   "redcap_repeat_instrument": "",
                   "redcap_repeat_instance": ""}
 
-        for index in crf_data['other'][patient_id]:
-            record[index] = crf_data['other'][patient_id][index]
+        for index in crf_data['other_data'][patient_id]:
+            record[index] = crf_data['other_data'][patient_id][index]
 
         records_to_import.append(record)
 
