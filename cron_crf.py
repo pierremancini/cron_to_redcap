@@ -21,13 +21,13 @@ import argparse
 from project_logging import set_logger
 
 
-def treat_crf(reader, corresp):
+
+def treat_crf(file_handle, corresp):
     """
         Transform data from CRF.
 
-        :param reader: Content of .tsv's CRF file
+        :param file_handle: Content of .tsv's CRF file
         :param barcode_index: Correspondance colonne fichier/champ redcap
-
 
         :return: - couple_count: data relative to barcode
                  - other_data: data contained in other fields of crf file. Includes clinical data.
@@ -43,7 +43,10 @@ def treat_crf(reader, corresp):
     # {patient_id: {champ_redcap: valeur}}
     other_data = {}
 
-    for line in reader:
+    dict_reader = csv.DictReader(file_handle, delimiter='\t')
+
+    for line in dict_reader:
+
         patient_id = line['USUBJID']
         other_data[patient_id] = {}
         for index in line:
@@ -335,8 +338,7 @@ if __name__ == '__main__':
 
 
     with open(local_path_crf, 'r') as csvfile:
-        dict_reader = csv.DictReader(csvfile, delimiter='\t')
-        crf_data = treat_crf(dict_reader, config['corresp'])
+        crf_data = treat_crf(csvfile, config['corresp'])
 
     # Les couple patient_id, type_barcode des records non vide de redcap
     pack = treat_redcap_response(response, redcap_fields)
