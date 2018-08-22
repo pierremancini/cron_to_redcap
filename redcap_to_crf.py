@@ -178,6 +178,13 @@ if __name__ == '__main__':
         for record in response[1:]:
             if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
                 if record['patient_id'] not in to_exclude and not record['sent_to_ennov_at']:
+                    # En cas de valeur nulle les dates doivent avoir un espaces pour que l'importation
+                    # dans le eCRF marche. (voir mail Delphine)
+                    if not record['date_of_availability']:
+                        record['date_of_availability'] = ' '
+                    if not record['date_receipt_files']:
+                        record['date_receipt_files'] = ' '
+
                     id_list.append(record['patient_id'])
                     row = [record['patient_id'],
                     record['date_receipt_files'],
