@@ -32,10 +32,29 @@ crf_host: 'ftps2.isped.u-bordeaux2.fr'
 path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing.tsv'
 
 # Correspondance colonne fichier/champ redcap
-corresp:
 
-  clinical:
-    SITYP: samplenature_adn
+corresp:
+  other:
+    # Information identique entre adn et arn (frozen ou ffpe)
+    SITYP: 
+      - samplenature_adn
+      - samplenature_arn
+
+    SICELLD: tumorcellularity_adn
+    SICELLR: tumorcellularity_arn
+
+    MHDIAG: histotype_multisarc
+    MHDIAGOTH: histotype_multisarc_other
+    AHDIAG: histotype_acompli
+    AHDIAGOTH: histotype_acompli_other
+
+    SEXE: sex
+
+    # Information identique entre adn et arn (Primary ou Metastatic)
+    SITUMTI: 
+      - tumorpathologyevent_type_arn
+      - tumorpathologyevent_type_adn
+
 
   barcode:
     SQBCRNA: rna_cng_barcode
