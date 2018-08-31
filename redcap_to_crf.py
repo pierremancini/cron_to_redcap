@@ -166,9 +166,9 @@ if __name__ == '__main__':
     # Records utilisés pour tester redcap
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
 
-    extraction_filename = 'bioanalysis_import.csv'
-    local_path = os.path.join('data', 'crf_extraction', extraction_filename)
-    path_crf_file = os.path.join('MULTIPLI', extraction_filename)
+    local_path = config['local_bioanalysis_file']
+    bioanalysis_filename = os.path.basename(local_path)
+    remote_bioanalysis_file = os.path.join('MULTIPLI', bioanalysis_filename)
 
     # Traitement de la réponse redcap
     id_list = []
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     # Attention, le fichier précédent sera écrasé
     # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
     # de la vérification md5 de la fonction
-    if upload_file(local_path, path_crf_file, connection):
+    if upload_file(local_path, remote_bioanalysis_file, connection):
         # Set le champ sent_to_ennov_at des records du fichier envoyé
         for patient_id in id_list:
             redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
