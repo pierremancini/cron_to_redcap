@@ -167,8 +167,7 @@ if __name__ == '__main__':
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
 
     local_path = config['local_bioanalysis_file']
-    bioanalysis_filename = os.path.basename(local_path)
-    remote_bioanalysis_file = os.path.join('MULTIPLI', bioanalysis_filename)
+    remote_bioanalysis_file = config['remote_bioanalysis_file']
 
     # Traitement de la réponse redcap
     # Ecriture du fichier d'import en local

@@ -31,7 +31,8 @@ mandatory_set:
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv.tsv'
 
-local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf.csv
+local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
+remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
 
 # Correspondance colonne fichier/champ redcap
 
