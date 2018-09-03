@@ -171,6 +171,7 @@ if __name__ == '__main__':
     remote_bioanalysis_file = os.path.join('MULTIPLI', bioanalysis_filename)
 
     # Traitement de la réponse redcap
+    # Ecriture du fichier d'import en local
     id_list = []
     with open(local_path, 'w') as tsvfile:
         csvwriter = csv.writer(tsvfile, delimiter=',', quoting=csv.QUOTE_NONE)
@@ -194,6 +195,7 @@ if __name__ == '__main__':
                     csvwriter.writerow(row)
 
     connection = {'host': config['crf_host'], 'login': config['login_crf'], 'password': config['password_crf']}
+    # upload du fichier d'import
     # Attention, le fichier précédent sera écrasé
     # Vérifie que le transfert à bien eu lieu avec un code retour qui dépend
     # de la vérification md5 de la fonction
