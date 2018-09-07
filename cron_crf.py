@@ -18,16 +18,19 @@ import ftplib
 import socket
 import argparse
 
-from project_logging import set_logger
+from project_logging import set_root_logger
 
 
+logger = logging.getLogger(__name__)
 
-def treat_crf(file_handle, corresp):
+
+def treat_crf(file_handle, corresp, project_metadata):
     """
         Transform data from CRF.
 
         :param file_handle: Content of .tsv's CRF file
         :param barcode_index: Correspondance colonne fichier/champ redcap
+        :param project_metadata: Redcap project metadata
 
         :return: - couple_count: data relative to barcode
                  - other_data: data contained in other fields of crf file. Includes clinical data.
@@ -311,7 +314,7 @@ if __name__ == '__main__':
     with open(args.log, 'r') as ymlfile:
         log_config = yaml.load(ymlfile)
 
-    logger = set_logger(config['path_to_log'], log_config)
+    logger = set_root_logger(config['path_to_log'], log_config)
 
     api_url = config['redcap_api_url']
     project = Project(api_url, config['api_key'])

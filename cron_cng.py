@@ -16,7 +16,10 @@ import logging.config
 import json
 import argparse
 
-from project_logging import set_logger
+from project_logging import set_root_logger
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_md5(fastq_path, mock=False):
@@ -254,7 +257,7 @@ if __name__ == '__main__':
     with open(args.log, 'r') as ymlfile:
         log_config = yaml.load(ymlfile)
 
-    logger = set_logger(config['path_to_log'], log_config)
+    logger = set_root_logger(config['path_to_log'], log_config)
 
     # Partie API redcap
     api_url = config['redcap_api_url']
