@@ -29,7 +29,7 @@ mandatory_set:
 
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
-path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv.tsv'
+path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
 
 local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
 remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
@@ -51,7 +51,7 @@ corresp:
     AHDIAG: histotype_acompli
     AHDIAGOTH: histotype_acompli_other
 
-    SEXE: sex
+    SEX: sex
 
     # Information identique entre adn et arn (Primary ou Metastatic)
     SITUMTI: 
