@@ -119,8 +119,6 @@ def treat_crf(file_handle, corresp, project_metadata):
                                     other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
                                     logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
                                 else:
-                                    pprint(choices_map[redcap_label])
-                                    print(line[index])
                                     raise e
                         else:
                             other_data[patient_id][redcap_label] = line[index]
