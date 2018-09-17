@@ -145,9 +145,9 @@ def treat_crf(file_handle, corresp, project_metadata):
         # multisarc -> 2 | Sarcoma
         if line[inv_corresp['histotype_multisarc']] and line[inv_corresp['histotype_acompli']]:
             raise ValueError('Can not be both acompli and multisarc')
-        elif line[inv_corresp['histotype_multisarc']]:
+        elif line[inv_corresp['histotype_multisarc']] or line[inv_corresp['histotype_multisarc_other']]:
             other_data[patient_id]['tumor_type'] = '2'
-        elif other_data[patient_id]['histotype_acompli']:
+        elif line[inv_corresp['histotype_acompli']] or line[inv_corresp['histotype_acompli_other']]:
             other_data[patient_id]['tumor_type'] = '1'
 
     return {'couple_count': couple_count, 'other_data': other_data}
