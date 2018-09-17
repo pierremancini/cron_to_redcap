@@ -71,6 +71,21 @@ def treat_crf(file_handle, corresp, project_metadata):
         else:
             return None
 
+    def reverse_map(map):
+
+        reverse_map = {}
+
+        for key, value in map.items():
+            if isinstance(value, list):
+                for i in value:
+                    reverse_map[i] = key
+            else:
+                reverse_map[value] = key
+
+        return reverse_map
+
+    inv_corresp = reverse_map(corresp['other'])
+
     for metadata_dict in project_metadata:
         metadata[metadata_dict['field_name']] = {'field_type': metadata_dict['field_type'],
             'form_name': metadata_dict['form_name'],
@@ -78,17 +93,17 @@ def treat_crf(file_handle, corresp, project_metadata):
         choices_map[metadata_dict['field_name']] = choices_mapping(metadata_dict['select_choices_or_calculations'])
 
     for line in dict_reader:
-        patient_id = line['USUBJID']
+        patient_id = line[inv_corresp['patient_id']]
         other_data[patient_id] = {}
 
         # Gestion des champs histotype
-        if line['MHDIAG'] and line['MHDIAGOTH']:
+        if line[inv_corresp['histotype_multisarc']] and line[inv_corresp['histotype_multisarc_other']]:
             logger.warning('Les colonnes \'histotype_multisarc\' et \'histotype_multisarc_other\''
-            ' sont remplis, histotype_multisarc_other sera ignorée')
+            ' sont remplis, \'histotype_multisarc_other\' sera ignorée')
 
-        if line['AHDIAG'] and line['AHDIAGOTH']:
+        if line[inv_corresp['histotype_acompli']] and line[inv_corresp['histotype_acompli_other']]:
             logger.warning('Les colonnes \'histotype_acompli\' et \'histotype_multisarc_other\''
-            ' sont remplis, histotype_acompli_other sera ignorée')
+            ' sont remplis, \'histotype_acompli_other\' sera ignorée.')
 
         for index in line:
             if index not in corresp['barcode'] and index not in corresp['other']:
@@ -108,24 +123,29 @@ def treat_crf(file_handle, corresp, project_metadata):
                         redcap_labels = [redcap_labels]
 
                     for redcap_label in redcap_labels:
-                        if metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
-                            try:
-                                other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
-                            except KeyError as e:
-                                if line[index] == 'FFPE block':
-                                    other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
-                                    logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
-                                else:
-                                    raise e
-                        else:
-                            other_data[patient_id][redcap_label] = line[index]
+                        try:
+                            if metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
+                                try:
+                                    other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
+                                except KeyError as e:
+                                    if line[index] == 'FFPE block':
+                                        other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
+                                        logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
+                                    else:
+                                        raise e
+                            else:
+                                other_data[patient_id][redcap_label] = line[index]
+                        except KeyError as e:
+                            if redcap_label not in ['histotype_multisarc_other', 'histotype_acompli_other']:
+                                raise e
+
 
         # Déduction du tumor_type
-        # AHDIAG -> acompli -> 1 | Colon
-        # MHDIAG -> multisarc -> 2 | Sarcoma
-        if line['MHDIAG'] and line['AHDIAG']:
+        # acompli -> 1 | Colon
+        # multisarc -> 2 | Sarcoma
+        if line[inv_corresp['histotype_multisarc']] and line[inv_corresp['histotype_acompli']]:
             raise ValueError('Can not be both acompli and multisarc')
-        elif line['MHDIAG']:
+        elif line[inv_corresp['histotype_multisarc']]:
             other_data[patient_id]['tumor_type'] = '2'
         elif other_data[patient_id]['histotype_acompli']:
             other_data[patient_id]['tumor_type'] = '1'

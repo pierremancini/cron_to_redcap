@@ -37,9 +37,16 @@ remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.
 # Correspondance colonne fichier/champ redcap
 
 corresp:
+  barcode:
+    SQBCRNA: rna_cng_barcode
+    SQBCTUM: tumor_dna_barcode
+    SQBCGER: germline_dna_cng_barcode
+
   other:
+    USUBJID: patient_id
+
     # Information identique entre adn et arn (frozen ou ffpe)
-    SITYP: 
+    SITYP:
       - samplenature_adn
       - samplenature_arn
 
@@ -58,9 +65,4 @@ corresp:
       - tumorpathologyevent_type_arn
       - tumorpathologyevent_type_adn
 
-
-  barcode:
-    SQBCRNA: rna_cng_barcode
-    SQBCTUM: tumor_dna_barcode
-    SQBCGER: germline_dna_cng_barcode
 
