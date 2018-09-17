@@ -80,6 +80,16 @@ def treat_crf(file_handle, corresp, project_metadata):
     for line in dict_reader:
         patient_id = line['USUBJID']
         other_data[patient_id] = {}
+
+        # Gestion des champs histotype
+        if line['MHDIAG'] and line['MHDIAGOTH']:
+            logger.warning('Les colonnes \'histotype_multisarc\' et \'histotype_multisarc_other\''
+            ' sont remplis, histotype_multisarc_other sera ignorée')
+
+        if line['AHDIAG'] and line['AHDIAGOTH']:
+            logger.warning('Les colonnes \'histotype_acompli\' et \'histotype_multisarc_other\''
+            ' sont remplis, histotype_acompli_other sera ignorée')
+
         for index in line:
             if index not in corresp['barcode'] and index not in corresp['other']:
                 logger.info('{} colomn is ignored by the script'.format(index))
@@ -98,20 +108,7 @@ def treat_crf(file_handle, corresp, project_metadata):
                         redcap_labels = [redcap_labels]
 
                     for redcap_label in redcap_labels:
-                        # Gestion des choix "other" pour l'histotype
-                        if redcap_label == 'histotype_multisarc_other':
-                            if 'histotype_multisarc' in other_data[patient_id]:
-                                other_data[patient_id]['histotype_multisarc'] += line[index]
-                            else:
-                                other_data[patient_id]['histotype_multisarc'] = line[index]
-
-                        elif redcap_label == 'histotype_acompli_other':
-                            if 'histotype_acompli' in other_data[patient_id]:
-                                other_data[patient_id]['histotype_acompli'] += line[index]
-                            else:
-                                other_data[patient_id]['histotype_acompli'] = line[index]
-
-                        elif metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
+                        if metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
                             try:
                                 other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
                             except KeyError as e:
