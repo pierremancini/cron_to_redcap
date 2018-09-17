@@ -20,6 +20,7 @@ import argparse
 
 from project_logging import set_root_logger
 
+from pprint import pprint
 
 logger = logging.getLogger(__name__)
 
@@ -48,21 +49,91 @@ def treat_crf(file_handle, corresp, project_metadata):
 
     dict_reader = csv.DictReader(file_handle, delimiter='\t')
 
-    for line in dict_reader:
+    # Exploitation des métadata
+    metadata, redcap_fields, choices_map = {}, {}, {}
 
+    def choices_mapping(v):
+        """
+            Create mapping between value and label des champs radio et switch
+            form project metadata.
+
+
+            :param v: Value of 'select_choices_or_calculations' from project metadata.
+
+            :return: Map of value and label of a select_choices field.
+                     Return None if no value as argument is provided.
+        """
+
+        if v:
+            a = v.split('|')
+            map = {sub_a.split(', ')[1].strip(): sub_a.split(', ')[0].strip() for sub_a in a}
+            return map
+        else:
+            return None
+
+    for metadata_dict in project_metadata:
+        metadata[metadata_dict['field_name']] = {'field_type': metadata_dict['field_type'],
+            'form_name': metadata_dict['form_name'],
+            'select_choices_or_calculations': metadata_dict['select_choices_or_calculations']}
+        choices_map[metadata_dict['field_name']] = choices_mapping(metadata_dict['select_choices_or_calculations'])
+
+    for line in dict_reader:
         patient_id = line['USUBJID']
         other_data[patient_id] = {}
         for index in line:
-            if index in corresp['barcode'] and line[index]:
-                couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
-                couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
-                couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
-            elif index in corresp['other']:
-                if isinstance(corresp['other'][index], list):
-                    for field_name in corresp['other'][index]:
-                        other_data[patient_id][field_name] = line[index]
-                else:
-                    other_data[patient_id][corresp['other'][index]] = line[index]
+            if index not in corresp['barcode'] and index not in corresp['other']:
+                logger.info('{} colomn is ignored by the script'.format(index))
+            else:
+                if index in corresp['barcode'] and line[index]:
+                    couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
+                    couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
+                    couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
+
+                # Gestion des autres données, notement les clinical data
+                elif index in corresp['other'] and line[index]:
+
+                    redcap_labels = corresp['other'][index]
+
+                    if not isinstance(redcap_labels, list):
+                        redcap_labels = [redcap_labels]
+
+                    for redcap_label in redcap_labels:
+                        # Gestion des choix "other" pour l'histotype
+                        if redcap_label == 'histotype_multisarc_other':
+                            if 'histotype_multisarc' in other_data[patient_id]:
+                                other_data[patient_id]['histotype_multisarc'] += line[index]
+                            else:
+                                other_data[patient_id]['histotype_multisarc'] = line[index]
+
+                        elif redcap_label == 'histotype_acompli_other':
+                            if 'histotype_acompli' in other_data[patient_id]:
+                                other_data[patient_id]['histotype_acompli'] += line[index]
+                            else:
+                                other_data[patient_id]['histotype_acompli'] = line[index]
+
+                        elif metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
+                            try:
+                                other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
+                            except KeyError as e:
+                                if line[index] == 'FFPE block':
+                                    other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
+                                    logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
+                                else:
+                                    pprint(choices_map[redcap_label])
+                                    print(line[index])
+                                    raise e
+                        else:
+                            other_data[patient_id][redcap_label] = line[index]
+
+        # Déduction du tumor_type
+        # AHDIAG -> acompli -> 1 | Colon
+        # MHDIAG -> multisarc -> 2 | Sarcoma
+        if line['MHDIAG'] and line['AHDIAG']:
+            raise ValueError('Can not be both acompli and multisarc')
+        elif line['MHDIAG']:
+            other_data[patient_id]['tumor_type'] = '2'
+        elif other_data[patient_id]['histotype_acompli']:
+            other_data[patient_id]['tumor_type'] = '1'
 
     return {'couple_count': couple_count, 'other_data': other_data}
 
@@ -334,14 +405,15 @@ if __name__ == '__main__':
     response = project.export_records()
 
     if args.dev:
-        local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction', 'MULTIPLI_dev.tsv')
+        # local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction',
+        # 'MULTIPLI_Sequencing_20180822_barcode.csv')
+        local_path_crf = os.path.join('test', 'cron_crf_test', 'data', 'MULTIPLI_Sequencing_mock.tsv')
     else:
         # get crf file with ftps
         local_path_crf = bring_crf_file(config)
 
-
     with open(local_path_crf, 'r') as csvfile:
-        crf_data = treat_crf(csvfile, config['corresp'])
+        crf_data = treat_crf(csvfile, config['corresp'], project.metadata)
 
     # Les couple patient_id, type_barcode des records non vide de redcap
     pack = treat_redcap_response(response, redcap_fields)
