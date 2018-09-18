@@ -102,13 +102,19 @@ def treat_crf(file_handle, corresp, project_metadata):
         other_data[patient_id] = {}
 
         # Gestion des champs histotype
-        if line[inv_corresp['histotype_multisarc']] and line[inv_corresp['histotype_multisarc_other']]:
-            logger.warning('Les colonnes \'histotype_multisarc\' et \'histotype_multisarc_other\''
-            ' sont remplis, \'histotype_multisarc_other\' sera ignorée')
+        try:
+            if line[inv_corresp['histotype_multisarc']] and line[inv_corresp['histotype_multisarc_other']]:
+                logger.warning('Les colonnes \'histotype_multisarc\' et \'histotype_multisarc_other\''
+                ' sont remplis, \'histotype_multisarc_other\' sera ignorée')
 
-        if line[inv_corresp['histotype_acompli']] and line[inv_corresp['histotype_acompli_other']]:
-            logger.warning('Les colonnes \'histotype_acompli\' et \'histotype_multisarc_other\''
-            ' sont remplis, \'histotype_acompli_other\' sera ignorée.')
+            if line[inv_corresp['histotype_acompli']] and line[inv_corresp['histotype_acompli_other']]:
+                logger.warning('Les colonnes \'histotype_acompli\' et \'histotype_multisarc_other\''
+                ' sont remplis, \'histotype_acompli_other\' sera ignorée.')
+        except KeyError as e:
+            # Passe l'erreur si l'une des 4 colonnes histotype non présente dans le fichier
+            key = str(e).replace("'", "")
+            if key not in [item for item in corresp['other'].keys()]:
+                raise e
 
         for index in line:
             if index in corresp['barcode'] and line[index]:
