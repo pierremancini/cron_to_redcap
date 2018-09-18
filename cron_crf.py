@@ -92,6 +92,11 @@ def treat_crf(file_handle, corresp, project_metadata):
             'select_choices_or_calculations': metadata_dict['select_choices_or_calculations']}
         choices_map[metadata_dict['field_name']] = choices_mapping(metadata_dict['select_choices_or_calculations'])
 
+
+    for colomn in dict_reader.fieldnames:
+        if colomn not in corresp['barcode'] and colomn not in corresp['other']:
+            logger.info('{} colomn is ignored by the script'.format(colomn))
+
     for line in dict_reader:
         patient_id = line[inv_corresp['patient_id']]
         other_data[patient_id] = {}
@@ -106,38 +111,35 @@ def treat_crf(file_handle, corresp, project_metadata):
             ' sont remplis, \'histotype_acompli_other\' sera ignorée.')
 
         for index in line:
-            if index not in corresp['barcode'] and index not in corresp['other']:
-                logger.info('{} colomn is ignored by the script'.format(index))
-            else:
-                if index in corresp['barcode'] and line[index]:
-                    couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
-                    couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
-                    couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
+            if index in corresp['barcode'] and line[index]:
+                couple_count.setdefault((patient_id, corresp['barcode'][index]), {'count': 0, 'barcode': []})
+                couple_count[(patient_id, corresp['barcode'][index])]['count'] += 1
+                couple_count[(patient_id, corresp['barcode'][index])]['barcode'].append(line[index])
 
-                # Gestion des autres données, notement les clinical data
-                elif index in corresp['other'] and line[index]:
+            # Gestion des autres données, notement les clinical data
+            elif index in corresp['other'] and line[index]:
 
-                    redcap_labels = corresp['other'][index]
+                redcap_labels = corresp['other'][index]
 
-                    if not isinstance(redcap_labels, list):
-                        redcap_labels = [redcap_labels]
+                if not isinstance(redcap_labels, list):
+                    redcap_labels = [redcap_labels]
 
-                    for redcap_label in redcap_labels:
-                        try:
-                            if metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
-                                try:
-                                    other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
-                                except KeyError as e:
-                                    if line[index] == 'FFPE block':
-                                        other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
-                                        logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
-                                    else:
-                                        raise e
-                            else:
-                                other_data[patient_id][redcap_label] = line[index]
-                        except KeyError as e:
-                            if redcap_label not in ['histotype_multisarc_other', 'histotype_acompli_other']:
-                                raise e
+                for redcap_label in redcap_labels:
+                    try:
+                        if metadata[redcap_label]['field_type'] in ['radio', 'dropdown', 'yesno']:
+                            try:
+                                other_data[patient_id][redcap_label] = choices_map[redcap_label][line[index]]
+                            except KeyError as e:
+                                if line[index] == 'FFPE block':
+                                    other_data[patient_id][redcap_label] = choices_map[redcap_label]['FFPE']
+                                    logger.info('La valeur \'FFPE block\' est convertie en \'FFPE\'')
+                                else:
+                                    raise e
+                        else:
+                            other_data[patient_id][redcap_label] = line[index]
+                    except KeyError as e:
+                        if redcap_label not in ['histotype_multisarc_other', 'histotype_acompli_other']:
+                            raise e
 
 
         # Déduction du tumor_type
