@@ -1,5 +1,5 @@
 
-path_to_log: '/var/log'
+path_to_log: '/scratch/log_cron/multipli'
 
 path_to_data: 'data'
 
