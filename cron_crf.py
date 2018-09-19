@@ -147,7 +147,6 @@ def treat_crf(file_handle, corresp, project_metadata):
                         if redcap_label not in ['histotype_multisarc_other', 'histotype_acompli_other']:
                             raise e
 
-
         # Déduction du tumor_type
         # acompli -> 1 | Colon
         # multisarc -> 2 | Sarcoma
