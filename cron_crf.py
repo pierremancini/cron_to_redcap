@@ -358,10 +358,9 @@ def bring_crf_file(script_config):
 
     """
 
-    head_crf, tail_crf = os.path.split(config['path_crf_file'])
+    head_crf, tail_crf = os.path.split(config['remote_crf_file'])
 
-    folder_download = os.path.join(config['path_to_data'], 'crf_extraction')
-    path_download = os.path.join(folder_download, tail_crf)
+    path_download = config['local_crf_file']
 
     with ftplib.FTP_TLS(config['crf_host']) as ftps:
         ftps.login(config['login_crf'], config['password_crf'])
@@ -371,11 +370,6 @@ def bring_crf_file(script_config):
         # cf: stackoverflow.com/questions/35581425/python-ftps-hangs-on-directory-list-in-passive-mode
         ftps.af = socket.AF_INET6
         ftps.cwd(head_crf)
-
-        try:
-            os.mkdir(folder_download)
-        except FileExistsError:
-            pass
 
         with open(path_download, 'wb') as f:
             ftps.retrbinary('RETR {}'.format(tail_crf), lambda x: f.write(x.decode("ISO-8859-1").encode("utf-8")))
