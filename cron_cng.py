@@ -51,11 +51,13 @@ def info_from_set(set_to_complete):
 
     for set in set_to_complete:
         set_url = config['url_cng'] + set
-        page = requests.get(set_url, auth=(config['login_cng'], config['password_cng']))
+        page = requests.get(set_url + '/', auth=(config['login_cng'], config['password_cng']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
-        file.string))
+
+        fastq_gen =[file.get('href') for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
+        file.get('href'))]
+
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
@@ -315,8 +317,7 @@ if __name__ == '__main__':
         timeout=(3.05, 27))
     soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-    # liste des att. des tag <a> avec pour nom 'set'
-    href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
+    href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.get('href'))]
     list_set_cng = [href[:-1] for href in href_set]
 
     # On ignore les sets déjà cloturés
@@ -328,7 +329,6 @@ if __name__ == '__main__':
 
     # On ignore 'manuellement' certains sets
     set_to_complete = set_to_complete - set(config['ignored_set'])
-
 
     updated_records = []
 
