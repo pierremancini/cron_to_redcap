@@ -175,7 +175,7 @@ if __name__ == '__main__':
     with open(local_path, 'w') as tsvfile:
         csvwriter = csv.writer(tsvfile, delimiter=',', quoting=csv.QUOTE_NONE)
         csvwriter.writerow(header)
-        for record in response[1:]:
+        for record in response:
             if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
                 if record['patient_id'] not in to_exclude and not record['sent_to_ennov_at']:
                     # En cas de valeur nulle les dates doivent avoir un espaces pour que l'importation
