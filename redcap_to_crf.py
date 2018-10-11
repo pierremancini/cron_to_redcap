@@ -17,7 +17,7 @@ import hashlib
 import time
 import update_redcap_record as redcap_record
 
-from project_logging import set_logger
+from project_logging import set_root_logger
 
 from pprint import pprint
 
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     with open(args.log, 'r') as ymlfile:
         log_config = yaml.load(ymlfile)
 
-    logger = set_logger(config['path_to_log'], log_config)
+    logger = set_root_logger(config['path_to_log'], log_config)
 
     # Génération du fichier d'exportation vers CRF
     project = Project(config['redcap_api_url'], config['api_key'])
