@@ -148,7 +148,6 @@ if __name__ == '__main__':
     bio_analysis = {}
 
     # Utilise les metadata pour retrouver les champs correspondant au formulaire bioinformatic_analysis
-    # ICI à changer
     for metadict in project.metadata:
         if metadict['form_name'] == 'bioinformatic_analysis':
             bio_analysis.setdefault(metadict['field_label'], metadict['field_name'])
