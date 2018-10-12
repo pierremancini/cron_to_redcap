@@ -19,22 +19,23 @@ ignored_set:
   - set3
   - set4
   - set5
-  - set6
-  - set7
+  # - set6
+  # - set7
   - set8
 
 # Liste des sets (cng) que cron_cng.py ira systématiquement lire
 mandatory_set:
   # Do not use ~ or Null if the list is empty
+  - set6
+  - set7
 
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 
 remote_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
-#prod -> local_crf_file: 'scratch/cron_data/multipli/MULTIPLI_Sequencing_20180822.tsv'
-local_crf_file: 'data/crf_extraction/MULTIPLI_Sequencing_20180822.tsv'
+local_crf_file: 'scratch/cron_data/multipli/MULTIPLI_Sequencing_20180822.tsv'
 
-local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
+local_bioanalysis_file: 'scratch/cron_data/multipli/Multipli_samples_bioinf_test_transfert.csv'
 remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
 
 # Correspondance colonne fichier/champ redcap
