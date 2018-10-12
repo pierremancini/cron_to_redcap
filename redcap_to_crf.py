@@ -17,7 +17,7 @@ import hashlib
 import time
 import update_redcap_record as redcap_record
 
-from project_logging import set_logger
+from project_logging import set_root_logger
 
 from pprint import pprint
 
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     with open(args.log, 'r') as ymlfile:
         log_config = yaml.load(ymlfile)
 
-    logger = set_logger(config['path_to_log'], log_config)
+    logger = set_root_logger(config['path_to_log'], log_config)
 
     # Génération du fichier d'exportation vers CRF
     project = Project(config['redcap_api_url'], config['api_key'])
@@ -148,7 +148,6 @@ if __name__ == '__main__':
     bio_analysis = {}
 
     # Utilise les metadata pour retrouver les champs correspondant au formulaire bioinformatic_analysis
-    # ICI à changer
     for metadict in project.metadata:
         if metadict['form_name'] == 'bioinformatic_analysis':
             bio_analysis.setdefault(metadict['field_label'], metadict['field_name'])
@@ -175,7 +174,7 @@ if __name__ == '__main__':
     with open(local_path, 'w') as tsvfile:
         csvwriter = csv.writer(tsvfile, delimiter=',', quoting=csv.QUOTE_NONE)
         csvwriter.writerow(header)
-        for record in response[1:]:
+        for record in response:
             if not record['redcap_repeat_instrument'] and not record['redcap_repeat_instance']:
                 if record['patient_id'] not in to_exclude and not record['sent_to_ennov_at']:
                     # En cas de valeur nulle les dates doivent avoir un espaces pour que l'importation

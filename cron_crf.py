@@ -222,7 +222,6 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
         instance_number = max_instance_number() + 1
 
         for barcode in couple_count[couple]['barcode']:
-            if barcode not in redcap_barcodes:
                 new_records.append({'redcap_repeat_instrument': instrument,
                                   'patient_id': patient_id,
                                   type_barcode: barcode,
@@ -235,15 +234,17 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
 
     def create_record(to_create_barcode):
         """
-            Create a record that has no duplicate (same patient_di, type barcode) in
-            RedCap instance.
+            Create a record
         """
 
-        if barcode[0] not in redcap_barcodes:
-            new_record = {'redcap_repeat_instrument': instrument,
-                          'patient_id': patient_id,
-                          type_barcode: barcode[0]}
-            to_create_barcode.append(new_record)
+        if barcode[0] in redcap_barcodes:
+            logger.warning('Le barcode {} existe déjà dans REDCap'.format(barcode))
+
+        new_record = {'redcap_repeat_instrument': instrument,
+                      'patient_id': patient_id,
+                      type_barcode: barcode[0],
+                      'redcap_repeat_instance': 1}
+        to_create_barcode.append(new_record)            
 
         return to_create_barcode
 
@@ -265,6 +266,8 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
                                    type_barcode: barcode,
                                    'redcap_repeat_instance': instance_number})
                 instance_number += 1
+            else:
+                logger.warning('Le barcode {} existe déjà dans REDCap'.format(barcode))
 
         create_chain += new_records
 
@@ -290,7 +293,6 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
 
         barcode = couple_count[couple]['barcode']
 
-        # Log: info des différents create et clone de record ?
         if (not doublon) and (not clone):
             to_create_barcode = create_record(to_create_barcode)
 
@@ -421,9 +423,9 @@ if __name__ == '__main__':
     response = project.export_records()
 
     if args.dev:
-        # local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction',
-        # 'MULTIPLI_Sequencing_20180822_barcode.csv')
-        local_path_crf = os.path.join('test', 'cron_crf_test', 'data', 'MULTIPLI_Sequencing_mock.tsv')
+        local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction',
+        'mock_MULTIPLI_Sequencing_barcode.tsv')
+        # local_path_crf = os.path.join('test', 'cron_crf_test', 'data', 'mock_MULTIPLI_Sequencing_barcode.tsv')
     else:
         # get crf file with ftps
         local_path_crf = bring_crf_file(config)

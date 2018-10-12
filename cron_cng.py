@@ -51,11 +51,13 @@ def info_from_set(set_to_complete):
 
     for set in set_to_complete:
         set_url = config['url_cng'] + set
-        page = requests.get(set_url, auth=(config['login_cng'], config['password_cng']))
+        page = requests.get(set_url + '/', auth=(config['login_cng'], config['password_cng']))
         soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        fastq_gen = (file.string for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
-        file.string))
+
+        fastq_gen =[file.get('href') for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
+        file.get('href'))]
+
         for fastq in fastq_gen:
             project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
             flowcell, tag = end_of_file.split('.')[:-2]
@@ -274,13 +276,6 @@ if __name__ == '__main__':
 
     response = project.export_records()
 
-    # TODO: A supprimer pour la mise en production
-    if args.mock:
-        with open(os.path.join('data', 'cng_filenames_dump.json'), 'r') as jsonfile:
-            filenames_by_set = json.load(jsonfile)
-        with open(os.path.join('data', 'cng_md5_dump.json'), 'r') as jsonfile:
-            md5_by_path = json.load(jsonfile)
-
     # Record n'ayant pas les champs path remplis
     # {barcode: [record, record, ...]}
     to_complete = {}
@@ -305,18 +300,16 @@ if __name__ == '__main__':
                 if record['redcap_repeat_instance'] and record['redcap_repeat_instrument']:
                     if record[redcap_fields['Barcode'][instrument]]:
                         barcode = record[redcap_fields['Barcode'][instrument]]
-                    to_complete.setdefault(barcode, []).append(record)
+                    to_complete.setdefault(patient_id, {}).setdefault(barcode, []).append(record)
             else:
                 # On retrouve le set dans le champ set
                 sets_completed.append(record[redcap_fields['Set'][instrument]])
-
 
     page = requests.get(config['url_cng'], auth=(config['login_cng'], config['password_cng']),
         timeout=(3.05, 27))
     soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-    # liste des att. des tag <a> avec pour nom 'set'
-    href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.string)]
+    href_set = [a.get('href') for a in soup.find_all('a') if re.search(r'^set\d+/$', a.get('href'))]
     list_set_cng = [href[:-1] for href in href_set]
 
     # On ignore les sets déjà cloturés
@@ -329,50 +322,53 @@ if __name__ == '__main__':
     # On ignore 'manuellement' certains sets
     set_to_complete = set_to_complete - set(config['ignored_set'])
 
-
     updated_records = []
 
     # Dictionnaire avec les barcodes en 1ère clé
-    dicts_fastq_info = info_from_set(set_to_complete)
+    if args.mock:
+        from dump_dicts_fastq_info import dicts_fastq_info
+    else:
+        dicts_fastq_info = info_from_set(set_to_complete)
 
     for barcode in dicts_fastq_info:
-        try:
-            to_complete[barcode]
-        except KeyError as e:
-            # On cherche les sets (cng) associé au barcode ayant déclenché le warning.
-            sets = {dico['Set'] for dico in dicts_fastq_info[barcode]}
-            sets_warning = ', '.join(sets)
-            warn_msg = 'Le barcode {} ({}) n\'est pas présent dans le RedCap alors qu\'il est sur le CNG.'.format(barcode, sets_warning)
-            logger.warning(warn_msg)
-        else:
+        for patient_id in to_complete:
+            try:
+                to_complete[patient_id][barcode]
+            except KeyError as e:
+                # On cherche les sets (cng) associé au barcode ayant déclenché le warning.
+                sets = {dico['Set'] for dico in dicts_fastq_info[barcode]}
+                sets_warning = ', '.join(sets)
+                warn_msg = 'Le barcode {}, patient_id {} ({}) n\'est pas présent dans le RedCap alors qu\'il est sur le CNG.'.format(barcode, patient_id, sets_warning)
+                logger.warning(warn_msg)
+            else:
+                # SARC2 et SARC3 doivent être filtré
+                clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[patient_id][barcode])
 
-            clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[barcode])
+                # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans
+                # RedCap -> pas de clonage
+                if clone_nb == 0:
+                    updated_records += multiple_update(to_complete[patient_id][barcode], redcap_fields,
+                            dicts_fastq_info[barcode])
 
-            # 1er cas: le nombre de fastq CNG correspond au nombre de record à completer dans RedCap
-            #    -> pas de clonage
-            if clone_nb == 0:
-                updated_records += multiple_update(to_complete[barcode], redcap_fields,
+                # 2em cas: le nombre de fastq CNG et suppérieur au nombre de record à completer
+                # dans RedCap -> clonage, cas classique
+                elif clone_nb > 2:
+                    multiple_to_update = clone_chain_record(to_complete[patient_id][barcode], redcap_fields,
+                        records_by_couple, clone_nb)
+                    updated_records += multiple_update(multiple_to_update, redcap_fields,
                         dicts_fastq_info[barcode])
 
-            # 2em cas: le nombre de fastq CNG et suppérieur au nombre de record à completer dans RedCap
-            #   -> clonage, cas classique
-            elif clone_nb > 2:
-                multiple_to_update = clone_chain_record(to_complete[barcode], redcap_fields, records_by_couple,
-                        clone_nb)
-                updated_records += multiple_update(multiple_to_update, redcap_fields,
-                    dicts_fastq_info[barcode])
-
-    for barcode in to_complete:
-        try:
-            dicts_fastq_info[barcode]
-        except KeyError:
-            warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG ou appartient à un set déjà intégré dans RedCap:\n'
-            for i in range(len(to_complete[barcode])):
-                patient_id = to_complete[barcode][i]['patient_id']
-                instrument = to_complete[barcode][i]['redcap_repeat_instrument']
-                barcode = to_complete[barcode][i][redcap_fields['Barcode'][instrument]]
-                warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
-                    instrument, barcode)
-            logger.warning(warn_msg)
+    for patient_id in to_complete:
+        for barcode in to_complete[patient_id]:
+            try:
+                dicts_fastq_info[barcode]
+            except KeyError:
+                warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG ou appartient à un set déjà intégré dans RedCap:\n'
+                for i in range(len(to_complete[patient_id][barcode])):
+                    instrument = to_complete[patient_id][barcode][i]['redcap_repeat_instrument']
+                    warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
+                        instrument, barcode)
+                # DEBUG x -> A remettre en prod
+                logger.warning(warn_msg)
 
     project.import_records(updated_records)
