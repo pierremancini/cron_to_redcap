@@ -22,6 +22,7 @@ ignored_set:
   # - set6
   # - set7
   - set8
+  - set18
 
 # Liste des sets (cng) que cron_cng.py ira systématiquement lire
 mandatory_set:
@@ -33,9 +34,9 @@ mandatory_set:
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 
 remote_crf_file: 'MULTIPLI/mock_MULTIPLI_Sequencing_barcode.tsv'
-local_crf_file: 'scratch/cron_data/multipli/mock_MULTIPLI_Sequencing_barcode.tsv'
+local_crf_file: '/scratch/data_cron/multipli/mock_MULTIPLI_Sequencing_barcode.tsv'
 
-local_bioanalysis_file: 'scratch/cron_data/multipli/Multipli_samples_bioinf_test_transfert.csv'
+local_bioanalysis_file: '/scratch/data_cron/multipli/Multipli_samples_bioinf_test_transfert.csv'
 remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
 
 # Correspondance colonne fichier/champ redcap
