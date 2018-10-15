@@ -1,7 +1,7 @@
 
-path_to_log: '/scratch/log_cron'
+path_to_log: '/scratch/log_cron/multipli'
 
-path_to_data: '/scratch/data_cron'
+path_to_data: '/scratch/data_cron/multipli'
 
 # ---- RedCap ----
 # redcap_api_url: 'http://ib101b/html/redcap/api/'
