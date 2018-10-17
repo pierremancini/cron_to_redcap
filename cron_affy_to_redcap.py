@@ -21,10 +21,10 @@ subset = project.export_records(events=["analysis_arm_1"])
 # print(subset)
 patient_id = []
 try:
-	os.remove("logfile.log")
+	os.remove("Ask_redcap.log")
 except OSError:
 	pass
-logFile = open("logfile.log","a")
+logFile = open("Ask_redcap.log","a")
 
 for s in subset:
 	# print("Patient id : ",s["patient_id"],"repeat instance : ", s["redcap_repeat_instance"], s["cel_file"], s["analysis_cinsarc_signature"])
