@@ -400,7 +400,7 @@ if __name__ == '__main__':
         secret_config = yaml.load(ymlfile)
     config.update(secret_config)
 
-    logger = set_root_logger(config['path_to_log'], __file__)
+    logger = set_root_logger(config['path_to_log'], os.path.basename(__file__))
 
     api_url = config['redcap_api_url']
     project = Project(api_url, config['api_key'])
