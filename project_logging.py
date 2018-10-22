@@ -5,34 +5,44 @@ import os
 import logging
 import logging.config
 
-import inspect
 
-
-def set_root_logger(path_to_log, config_dict):
+def set_root_logger(path_to_log, script_name):
     """
-        1. Check et création des dossier de log.
-
-        Le nom du fichier _.log est défini en fonction du nom de fichier appelant la fonction.
-
-        2. Instancie un logger "root".
+        Set root logger and configure its formatters and handlers.
     """
 
-    # Le nom du dossier dans lequel set_logger est défini <=> nom du projet
-    project_folder = os.path.relpath(inspect.stack()[0].filename, '..').split('/')[0]
+    config_logging = {
+        "root": {
+            "level": "DEBUG",
+            "handlers": ["console", "file_handler"]
+        },
+        "version": 1,
+        "formatters": {
+            "simple": {
+                "format": "%(name)s :: %(asctime)s :: %(levelname)s :: %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            },
+            "file_handler": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "DEBUG",
+                "filename": path_to_log + os.path.splitext(script_name)[0] + '.log',
+                "formatter": "simple",
+                "maxBytes": 10485760,
+                "backupCount": 20,
+                "encoding": "utf8"
+            }
+        }
+    }
 
-    # Le nom du fichier qui à appeler la fonction set_logger de ce module
-    name = os.path.splitext(inspect.stack()[1].filename)[0]
-
-    path = '{}/{}/{}/{}'.format(path_to_log, project_folder, name, name + '.log')
-    config_dict['handlers']['file_handler']['filename'] = path
-
-    try:
-        logging.config.dictConfig(config_dict)
-    except ValueError:
-        if not os.path.exists('{}/{}/{}'.format(path_to_log, project_folder, name)):
-            os.makedirs('{}/{}/{}'.format(path_to_log, project_folder, name))
-        # Il faut créé les dossiers de log
-        logging.config.dictConfig(config_dict)
+    logging.config.dictConfig(config_logging)
 
     logger = logging.getLogger()
 
