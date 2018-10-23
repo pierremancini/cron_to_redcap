@@ -52,33 +52,38 @@ def info_from_set(set_to_complete):
     for set in set_to_complete:
         set_url = config['url_cng'] + set
         page = requests.get(set_url + '/', auth=(config['login_cng'], config['password_cng']))
-        soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
+        if page.status_code == requests.codes.ok:
 
-        fastq_gen =[file.get('href') for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
-        file.get('href'))]
+            soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-        for fastq in fastq_gen:
-            project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
-            flowcell, tag = end_of_file.split('.')[:-2]
-            # Passe la variable mock pour lire les md5 depuis le dump json et pas le CNG
-            # pour avoir un debug/developpement plus rapide
-            md5 = get_md5(set_url + '/' + fastq, args.mock)
-            local_filename = '{}_{}_{}_{}.{}_{}_{}.fastq.gz'.format(
-                project, kit_code, barcode, flowcell, tag, lane, read)
-            dict_fastq_info = {'Set': set,
-                               'FastQ filename CNG': fastq,
-                               'FastQ filename Local': local_filename,
-                               'Path on cng': set_url,
-                               'md5 value': md5,
-                               'Project': project,
-                               'Kit code': kit_code,
-                               'Barcode': barcode,
-                               'Lane': lane,
-                               'Read': read,
-                               'Flowcell': flowcell,
-                               'Tag': tag}
-            dicts_fastq_info.setdefault(barcode, []).append(dict_fastq_info)
+            fastq_gen =[file.get('href') for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
+            file.get('href'))]
+
+            for fastq in fastq_gen:
+                project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
+                flowcell, tag = end_of_file.split('.')[:-2]
+                # Passe la variable mock pour lire les md5 depuis le dump json et pas le CNG
+                # pour avoir un debug/developpement plus rapide
+                md5 = get_md5(set_url + '/' + fastq, args.mock)
+                local_filename = '{}_{}_{}_{}.{}_{}_{}.fastq.gz'.format(
+                    project, kit_code, barcode, flowcell, tag, lane, read)
+                dict_fastq_info = {'Set': set,
+                                   'FastQ filename CNG': fastq,
+                                   'FastQ filename Local': local_filename,
+                                   'Path on cng': set_url,
+                                   'md5 value': md5,
+                                   'Project': project,
+                                   'Kit code': kit_code,
+                                   'Barcode': barcode,
+                                   'Lane': lane,
+                                   'Read': read,
+                                   'Flowcell': flowcell,
+                                   'Tag': tag}
+                dicts_fastq_info.setdefault(barcode, []).append(dict_fastq_info)
+
+        else:
+            logger.error('Response de {}: {}'.format(config['url_cng'], page.status_code))
 
     return dicts_fastq_info
 
