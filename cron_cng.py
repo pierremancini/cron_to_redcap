@@ -355,17 +355,20 @@ if __name__ == '__main__':
                     updated_records += multiple_update(multiple_to_update, redcap_fields,
                         dicts_fastq_info[barcode])
 
-    for patient_id in to_complete:
-        for barcode in to_complete[patient_id]:
-            try:
-                dicts_fastq_info[barcode]
-            except KeyError:
-                warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG ou appartient à un set déjà intégré dans RedCap:\n'
-                for i in range(len(to_complete[patient_id][barcode])):
-                    instrument = to_complete[patient_id][barcode][i]['redcap_repeat_instrument']
-                    warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
-                        instrument, barcode)
-                # DEBUG x -> A remettre en prod
-                logger.warning(warn_msg)
+    if dicts_fastq_info:
+        for patient_id in to_complete:
+            for barcode in to_complete[patient_id]:
+                try:
+                    dicts_fastq_info[barcode]
+                except KeyError:
+                    warn_msg = 'Analyse(s) déclarée(s) sur le CRF est manquante sur le site du CNG '\
+                        'ou appartient à un set déjà intégré dans RedCap:\n'
+                    for i in range(len(to_complete[patient_id][barcode])):
+                        instrument = to_complete[patient_id][barcode][i]['redcap_repeat_instrument']
+                        warn_msg += 'patient_id: {}, type d\'analyse: {}, barcode: {}\n'.format(patient_id,
+                            instrument, barcode)
+                    logger.warning(warn_msg)
+    else:
+        logger.debug('dicts_fastq_info is empty.')
 
     project.import_records(updated_records)
