@@ -1,7 +1,7 @@
 
-path_to_log: '/scratch/log_cron/multipli'
+path_to_log: '/home/pmancini/Code/cron_to_redcap/log/'
 
-path_to_data: '/scratch/data_cron/multipli'
+path_to_data: '/home/pmancini/Code/cron_to_redcap/data'
 
 # ---- RedCap ----
 # redcap_api_url: 'http://ib101b/html/redcap/api/'
@@ -34,9 +34,9 @@ mandatory_set:
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
 
 remote_crf_file: 'MULTIPLI/mock_MULTIPLI_Sequencing_barcode.tsv'
-local_crf_file: '/scratch/data_cron/multipli/mock_MULTIPLI_Sequencing_barcode.tsv'
+local_crf_file: 'data/crf_extraction/mock_MULTIPLI_Sequencing_barcode.tsv'
 
-local_bioanalysis_file: '/scratch/data_cron/multipli/Multipli_samples_bioinf_test_transfert.csv'
+local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
 remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
 
 # Correspondance colonne fichier/champ redcap
