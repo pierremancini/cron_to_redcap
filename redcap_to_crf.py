@@ -157,7 +157,7 @@ if __name__ == '__main__':
         'Date if receipt of all needed files',
         'Quality control',
         'Availability in genVarXplorer for interpretation',
-        'If yes data of availability'] # ! Utiliser 'If yes, data of availability' avec ',' pour le label
+        'If yes date of availability']
 
     # Records utilisés pour tester redcap
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
