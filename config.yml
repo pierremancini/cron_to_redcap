@@ -10,7 +10,8 @@ redcap_api_url: 'http://129.10.20.120/redcap/api/'
 
 # ---- CNG ----
 # Addresse web du CNG où lire le HTML 
-url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
+url_cng: https://www.cnrgh.fr/data/MULTIPLI/fastq/
+
 
 # Liste des sets (cng) que cron_cng.py ignorera systématiquement
 ignored_set:
