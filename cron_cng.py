@@ -57,8 +57,13 @@ def info_from_set(set_to_complete):
 
             soup = BeautifulSoup.BeautifulSoup(page.content, 'lxml')
 
-            fastq_gen =[file.get('href') for file in soup.find_all('a') if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$',
-            file.get('href'))]
+            fastq_gen = []
+
+            for a_tag in soup.find_all('a'):
+                if re.search(r'fastq\.((gz)|(bz)|(zip)|(bz2)|(tgz)|(tbz2))$', a_tag.get('href')):
+                    for child in a_tag.children:
+                        if isinstance(child, str):
+                            fastq_gen.append(child)
 
             for fastq in fastq_gen:
                 project, kit_code, barcode, lane, read, end_of_file = fastq.split('_')
