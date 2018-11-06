@@ -342,11 +342,7 @@ if __name__ == '__main__':
             try:
                 to_complete[patient_id][barcode]
             except KeyError as e:
-                # On cherche les sets (cng) associé au barcode ayant déclenché le warning.
-                sets = {dico['Set'] for dico in dicts_fastq_info[barcode]}
-                sets_warning = ', '.join(sets)
-                warn_msg = 'Le barcode {}, patient_id {} ({}) n\'est pas présent dans le RedCap alors qu\'il est sur le CNG.'.format(barcode, patient_id, sets_warning)
-                logger.warning(warn_msg)
+                pass
             else:
                 # SARC2 et SARC3 doivent être filtré
                 clone_nb = len(dicts_fastq_info[barcode]) - len(to_complete[patient_id][barcode])
