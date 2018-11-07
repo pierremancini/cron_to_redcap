@@ -1,7 +1,7 @@
 
-path_to_log: '/var/log'
+path_to_log: '/home/pmancini/Code/cron_to_redcap/log/'
 
-path_to_data: 'data'
+path_to_data: '/home/pmancini/Code/cron_to_redcap/data'
 
 # ---- RedCap ----
 # redcap_api_url: 'http://ib101b/html/redcap/api/'
@@ -10,7 +10,8 @@ redcap_api_url: 'http://129.10.20.120/redcap/api/'
 
 # ---- CNG ----
 # Addresse web du CNG où lire le HTML 
-url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
+url_cng: https://www.cnrgh.fr/data/MULTIPLI/fastq/
+
 
 # Liste des sets (cng) que cron_cng.py ignorera systématiquement
 ignored_set:
@@ -19,20 +20,22 @@ ignored_set:
   - set3
   - set4
   - set5
-  - set6
-  - set7
+  # - set6
+  # - set7
   - set8
+  - set18
 
 # Liste des sets (cng) que cron_cng.py ira systématiquement lire
 mandatory_set:
   # Do not use ~ or Null if the list is empty
+  - set6
+  - set7
 
 # ---- CRF ----
 crf_host: 'ftps2.isped.u-bordeaux2.fr'
-# path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
-remote_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
-#prod -> local_crf_file: 'scratch/cron_data/multipli/MULTIPLI_Sequencing_20180822.tsv'
-local_crf_file: 'data/crf_extraction/MULTIPLI_Sequencing_20180822.tsv'
+
+remote_crf_file: 'MULTIPLI/mock_MULTIPLI_Sequencing_barcode.tsv'
+local_crf_file: 'data/crf_extraction/mock_MULTIPLI_Sequencing_barcode.tsv'
 
 local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
 remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv

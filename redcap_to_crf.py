@@ -132,10 +132,7 @@ if __name__ == '__main__':
         secret_config = yaml.load(ymlfile)
     config.update(secret_config)
 
-    with open(args.log, 'r') as ymlfile:
-        log_config = yaml.load(ymlfile)
-
-    logger = set_root_logger(config['path_to_log'], log_config)
+    logger = set_root_logger(config['path_to_log'], os.path.basename(__file__))
 
     # Génération du fichier d'exportation vers CRF
     project = Project(config['redcap_api_url'], config['api_key'])
@@ -160,7 +157,7 @@ if __name__ == '__main__':
         'Date if receipt of all needed files',
         'Quality control',
         'Availability in genVarXplorer for interpretation',
-        'If yes data of availability'] # ! Utiliser 'If yes, data of availability' avec ',' pour le label
+        'If yes date of availability']
 
     # Records utilisés pour tester redcap
     to_exclude = ['DEV1', 'DEV2', 'DEV3', 'SARC2', 'SARC3']
