@@ -12,81 +12,48 @@ from redcap import RedcapError
 
 opt_parser = argparse.ArgumentParser(description=__doc__, prog='update_redcap.py')
 
-
-opt_parser.add_argument('-id', '--patient-id', required=True, help='Patient_id.')
+opt_parser.add_argument('-y', '--secret', default="secret_config.yml", help='secret config file.')
 opt_parser.add_argument('-d', '--analysis-date', required=True, help='Analysis_date.')
 opt_parser.add_argument('-c', '--cinsarc-status', required=True, help='CINSARC Status.')
+opt_parser.add_argument('-s', '--sample-name', required=True, help='Sample_Name.')
 
 args = opt_parser.parse_args()
 
-try:
-	os.remove("Update_redcap.log")
-except OSError:
-	pass
-logFile = open("Update_redcap.log","a")
 
-patient_id = args.patient_id
-# patient_id = patient_id[1:-1]
-message = "patient id list : %s\n" % (patient_id)
-logFile.write(message)
+with open(args.secret, 'r') as ymlfile:
+        secret_config = yaml.load(ymlfile)
+
 analysis_date = args.analysis_date
-# print(analysis_date)
-message = "analysis date : %s\n" % (analysis_date)
-logFile.write(message)
+print(analysis_date)
 cinsarc_status = args.cinsarc_status
-# print(cinsarc_status)
+print(cinsarc_status)
+sample_name = args.sample_name
+print(sample_name)
 
-# patient_id = ast.literal_eval(patient_id)
-message = "patient id type : %s\n" % (type(patient_id))
-logFile.write(message)
-logFile.close()
 
-api_url = 'https://redcap-exterieur.bordeaux.unicancer.fr/bioinfo/api/'
-# api_url = 'https://129.10.20.249/bioinfo/api/'
-api_key = 'A6AA00754139284F6BEFB5D9C23BED94'
+
+api_url = secret_config['api_url_cirsarc']
+api_key = secret_config['api_key_cirsarc']
 
 project = redcap.Project(api_url, api_key)
 print("yo")
 print(project)
 
 
-s1 = project.export_records(records=patient_id,events=["analysis_arm_1"], fields=["analysis_cinsarc_signature","analysis_date"])
-s1=s1[0]
-if not s1["analysis_cinsarc_signature"] and not s1["analysis_date"]:
-	to_import = [{'patient_id':patient_id,'redcap_event_name':'analysis_arm_1','redcap_repeat_instance':'1',
-				'analysis_cinsarc_signature':cinsarc_status,'analysis_date':analysis_date}]
-	response = project.import_records(to_import)
-	print(response)
-else:
-	print("can't update patient :",s1["patient_id"]," analysis repeat instance : ",s1["redcap_repeat_instance"]," some data already here...")
+subset = project.export_records(events=["analysis_arm_1"])
+for s in subset:
+	if s["sample_platform_number"] == sample_name:
+		print(s)
+		patient_id = s["patient_id"]
+
+		if not s["analysis_cinsarc_signature"] and not s["analysis_date"]:
+			to_import = [{'patient_id':patient_id,'redcap_event_name':'analysis_arm_1','redcap_repeat_instance':'1',
+						'analysis_cinsarc_signature':cinsarc_status,'analysis_date':analysis_date}]
+			response = project.import_records(to_import)
+			print(response)
+			print("patient : ",s["patient_id"]," UPDATED")
+		else:
+			print("can't update patient :",s["patient_id"]," analysis repeat instance : ",s["redcap_repeat_instance"]," some data already here...")
 
 
-# for p in patient_id:
-# 	print(p)
-# 	s1 = project.export_records(records=p,events=["analysis_arm_1"], fields=["cinsarc_signature","analysis_date"])
-# 	s1=s1[0]
-# 	if not s1["cinsarc_signature"] and not s1["analysis_date"]:
-# 		to_import = [{'patient_id':p,'redcap_event_name':'analysis_arm_1','redcap_repeat_instance':'1',
-# 					'cinsarc_signature':cinsarc_status,'analysis_date':analysis_date}]
-# 		response = project.import_records(to_import)
-# 		print(response)
-# 	else:
-# 		print("can't update patient :",s1["patient_id"]," analysis repeat instance : ",s1["redcap_repeat_instance"]," some data already here...")
-# ids_of_interest = ['1','2']
-#subset = project.export_records(records=ids_of_interest)
-# subset = project.export_records(records=ids_of_interest, events=["analysis_arm_1"])
-#subset = project.export_records(events=["analysis_arm_1"])
-# subset = project.export_records(records="2")
-# print(len(subset))
-# print(subset)
-# subset = project.export_records(records="3", events=["analysis_arm_1"])
-# print(len(subset))
-# print(subset)
 
-# Only want the first two forms
-# forms = project.forms[:1]
-# subset = project.export_records(forms=forms)
-# Known fields of interest
-# fields_of_interest = ['age', 'test_score1', 'test_score2']
-# fields_of_interest = 'cinsarc_signature'
-# subset = project.export_records(fields=fields_of_interest)
