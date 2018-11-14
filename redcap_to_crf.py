@@ -198,4 +198,4 @@ if __name__ == '__main__':
         # Set le champ sent_to_ennov_at des records du fichier envoyé
         for patient_id in id_list:
             redcap_record.update(config['redcap_api_url'], config['api_key'], patient_id, 'sent_to_ennov_at',
-                time.strftime('%Y-%m-%d'), 'bioinformatic_analysis')
+                time.strftime('%Y-%m-%d'), 'workflow_state')
