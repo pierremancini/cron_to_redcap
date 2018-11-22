@@ -260,14 +260,11 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
         instance_number = 1
 
         for barcode in couple_count[couple]['barcode']:
-            if barcode not in redcap_barcodes:
-                new_records.append({'redcap_repeat_instrument': instrument,
-                                   'patient_id': patient_id,
-                                   type_barcode: barcode,
-                                   'redcap_repeat_instance': instance_number})
-                instance_number += 1
-            else:
-                logger.warning('Le barcode {} existe déjà dans REDCap'.format(barcode))
+            new_records.append({'redcap_repeat_instrument': instrument,
+                               'patient_id': patient_id,
+                               type_barcode: barcode,
+                               'redcap_repeat_instance': instance_number})
+            instance_number += 1
 
         create_chain += new_records
 
@@ -421,7 +418,7 @@ if __name__ == '__main__':
 
     if args.dev:
         local_path_crf = os.path.join(config['path_to_data'], 'crf_extraction',
-        'mock_MULTIPLI_Sequencing_barcode.tsv')
+        'mock_MULTIPLI_Sequencing_barcode.tsv.back')
         # local_path_crf = os.path.join('test', 'cron_crf_test', 'data', 'mock_MULTIPLI_Sequencing_barcode.tsv')
     else:
         # get crf file with ftps
