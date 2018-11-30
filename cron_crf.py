@@ -288,20 +288,37 @@ def create_n_clone(couple_count, redcap_couple, redcap_barcodes, redcap_records,
         # Existe-t-il déjà un record dans redcap avec le même patient_id et le même type de barcode:
         clone = (couple[0], couple[1]) in redcap_couple
 
-        barcode = couple_count[couple]['barcode']
+        try:
+            redcap_couple[(couple[0], couple[1])]
+        except KeyError as e:
+            if (not doublon) and (not clone):
+                to_create_barcode = create_record(to_create_barcode)
 
-        if (not doublon) and (not clone):
-            to_create_barcode = create_record(to_create_barcode)
+            if (not doublon) and clone:
+                to_clone_barcode = clone_record(to_clone_barcode)
 
-        if (not doublon) and clone:
-            to_clone_barcode = clone_record(to_clone_barcode)
+            if doublon and (not clone):
+                create_chain = create_chain_record(create_chain)
 
-        if doublon and (not clone):
-            create_chain = create_chain_record(create_chain)
+            if doublon and clone:
+                clone_chain = clone_chain_record(clone_chain)
+        else:
+            # On enregistre un barcode supplémentaire au record dans redcap que si ils sont manquants.
+            # C'est à dire, on enregistre des barcodes si il y a plus de barcodes déclarés sur le fichier CRF
+            # que de barcodes déjà enregistrés dans redcap.
+            if clone and (len(redcap_couple[(couple[0], couple[1])]) < couple_count[couple]['count']):
+                if (not doublon) and (not clone):
+                    to_create_barcode = create_record(to_create_barcode)
 
-        if doublon and clone:
-            clone_chain = clone_chain_record(clone_chain)
+                if (not doublon) and clone:
+                    to_clone_barcode = clone_record(to_clone_barcode)
 
+                if doublon and (not clone):
+                    create_chain = create_chain_record(create_chain)
+
+                if doublon and clone:
+                    clone_chain = clone_chain_record(clone_chain)
+            
     return (to_clone_barcode, clone_chain, to_create_barcode, create_chain)
 
 
@@ -314,8 +331,8 @@ def treat_redcap_response(response, redcap_fields):
     """
 
     # Strucuture:
-    # (patient_id, type_barcode)
-    redcap_couple = []
+    # {(patient_id, type_barcode): [barcode, ...]}
+    redcap_couple = {}
 
     redcap_barcodes = []
 
@@ -329,7 +346,7 @@ def treat_redcap_response(response, redcap_fields):
             instrument = record['redcap_repeat_instrument']
             index = redcap_fields['Barcode'][instrument]
             if record[index]:
-                redcap_couple.append((patient_id, index))
+                redcap_couple.setdefault((patient_id, index), []).append(record[index])
                 redcap_barcodes.append(record[index])
                 redcap_records.setdefault((patient_id, instrument), []).append(record)
             else:
