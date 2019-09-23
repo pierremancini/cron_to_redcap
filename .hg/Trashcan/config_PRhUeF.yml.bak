@@ -1,0 +1,71 @@
+
+path_to_log: '/home/pmancini/Code/cron_to_redcap/log/'
+
+path_to_data: 'data'
+
+# ---- RedCap ----
+# redcap_api_url: 'http://ib101b/html/redcap/api/'
+redcap_api_url: 'http://129.10.20.120/redcap/api/'
+
+
+# ---- CNG ----
+# Addresse web du CNG où lire le HTML 
+url_cng: https://www.cng.fr/data/MULTIPLI/fastq/
+
+# Liste des sets (cng) que cron_cng.py ignorera systématiquement
+ignored_set:
+  - set1
+  - set2
+  - set3
+  - set4
+  - set5
+  - set6
+  - set7
+  - set8
+
+# Liste des sets (cng) que cron_cng.py ira systématiquement lire
+mandatory_set:
+  # Do not use ~ or Null if the list is empty
+
+# ---- CRF ----
+crf_host: 'ftps2.isped.u-bordeaux2.fr'
+# path_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
+remote_crf_file: 'MULTIPLI/MULTIPLI_Sequencing_20180822.tsv'
+#prod -> local_crf_file: 'scratch/cron_data/multipli/MULTIPLI_Sequencing_20180822.tsv'
+local_crf_file: 'data/crf_extraction/MULTIPLI_Sequencing_20180822.tsv'
+
+local_bioanalysis_file: data/crf_extraction/Multipli_samples_bioinf_test_transfert.csv
+remote_bioanalysis_file: MULTIPLI/IMPORT/Multipli_samples_bioinf_test_transfert.csv
+
+# Correspondance colonne fichier/champ redcap
+
+corresp:
+  barcode:
+    SQBCRNA: rna_cng_barcode
+    SQBCTUM: tumor_dna_barcode
+    SQBCGER: germline_dna_cng_barcode
+
+  other:
+    USUBJID: patient_id
+
+    # Information identique entre adn et arn (frozen ou ffpe)
+    SITYP:
+      - samplenature_adn
+      - samplenature_arn
+
+    SICELLD: tumorcellularity_adn
+    SICELLR: tumorcellularity_arn
+
+    MHDIAG: histotype_multisarc
+    MHDIAGOTH: histotype_multisarc_other
+    AHDIAG: histotype_acompli
+    AHDIAGOTH: histotype_acompli_other
+
+    SEX: sex
+
+    # Information identique entre adn et arn (Primary ou Metastatic)
+    SITUMTI: 
+      - tumorpathologyevent_type_arn
+      - tumorpathologyevent_type_adn
+
+

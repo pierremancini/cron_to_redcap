@@ -1,0 +1,8 @@
+syntax: glob
+
+data/**
+*.pyc
+*~
+secret_config.yml
+*.sublime-*
+*.orig

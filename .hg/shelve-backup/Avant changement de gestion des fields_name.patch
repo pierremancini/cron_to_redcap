@@ -1,0 +1,75 @@
+# HG changeset patch
+# User shelve@localhost
+# Date 1495185467 -7200
+#      Fri May 19 11:17:47 2017 +0200
+# Node ID 50abdd46294b973d5357410ce42498dc3e2fa67d
+# Parent  d23427a0220f1b8fb26886a45ba34fc766be577e
+changes to: Ajout des valeurs md5 et mise en place du clonage chainé.
+
+diff --git a/cron_cng.py b/cron_cng.py
+--- a/cron_cng.py
++++ b/cron_cng.py
+@@ -104,6 +104,26 @@
+ api_url = 'http://ib101b/html/redcap/api/'
+ project = Project(api_url, config['api_key'])
+ 
++
++# Strucure:
++# {instrument: [field_name, field_name]}
++# ou
++# {field_label: {}}
++redcap_fields = {}
++
++# Définition dynamique (par rapport au champs créer dans RedCap) des types
++for metadict in project.metadata:
++    redcap_fields.setdefault(metadict['field_label'], {}).setdefault(metadict['form_name'], metadict['field_name'])
++
++# Field labels qui nous interessent dans ce script:
++# 'Read', 'Path on cng', 'FastQ filename CNG', 'RNA CNG barcode', 'Set on cng',
++# 'Project', 'Lane',
++# Cas particulier des barcodes: 'Tumor DNA barcode', 'Germline DNA CNG barcode', 'RNA CNG barcode',
++# Faut-il rennomer tout ces label de barcode en un unique label "barcode", et garder les différences sur
++# le field_name ?
++# On fait un test avec un backup du fichier .csv des instruments RedCap: Multipli_DataDictionary_2017-05-19.csv
++
++
+ # Donne tout les records mais pas tout les champs des records
+ fields_path = ['path_on_cng', 'path_on_cng_rna', 'path_on_cng_constit']
+ # À aller chercher dans config_crf.yml ?
+@@ -174,6 +194,10 @@
+     for record in record_list:
+         record.update(info_cng_list[index])
+         fastq_path = config['url_cng'] + '/' + record['set'] + '/' + record['fullname']
++        
++
++        # On détermine le type de barcode, le type de set, le type de path
++
+         record['md5_value'] = get_md5(fastq_path)
+ 
+         records.append(record)
+@@ -297,5 +321,6 @@
+             updated_records.append(update(to_complete[barcode], dicts_fastq_info[barcode][0]))
+ 
+ 
++print(updated_records)
+ sys.exit('exit')
+ project.import_records(updated_records)
+diff --git a/cron_crf.py b/cron_crf.py
+--- a/cron_crf.py
++++ b/cron_crf.py
+@@ -7,6 +7,7 @@
+ """
+ 
+ import os
++import sys
+ import csv
+ import yaml
+ from redcap import Project
+@@ -129,7 +130,6 @@
+         new_records = []
+         instance_number = 1
+ 
+-        # Ici la variable barcode est un
+         for barcode in couple_count[couple]['barcode']:
+             new_records.append({'redcap_repeat_instrument': instrument,
+                                'patient_id': patient_id,
